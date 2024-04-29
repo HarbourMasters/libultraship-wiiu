@@ -85,6 +85,18 @@ void ControllerRumble::ClearAllMappingsForDevice(ShipDeviceIndex shipDeviceIndex
     SaveRumbleMappingIdsToConfig();
 }
 
+#ifdef __WIIU__
+void ControllerRumble::AddDefaultMappings(ShipDeviceIndex shipDeviceIndex) {
+    for (auto mapping : RumbleMappingFactory::CreateDefaultWiiURumbleMappings(shipDeviceIndex, mPortIndex)) {
+        AddRumbleMapping(mapping);
+    }
+
+    for (auto [id, mapping] : mRumbleMappings) {
+        mapping->SaveToConfig();
+    }
+    SaveRumbleMappingIdsToConfig();
+}
+#else
 void ControllerRumble::AddDefaultMappings(ShipDeviceIndex shipDeviceIndex) {
     for (auto mapping : RumbleMappingFactory::CreateDefaultSDLRumbleMappings(shipDeviceIndex, mPortIndex)) {
         AddRumbleMapping(mapping);
@@ -95,6 +107,7 @@ void ControllerRumble::AddDefaultMappings(ShipDeviceIndex shipDeviceIndex) {
     }
     SaveRumbleMappingIdsToConfig();
 }
+#endif
 
 void ControllerRumble::LoadRumbleMappingFromConfig(std::string id) {
     auto mapping = RumbleMappingFactory::CreateRumbleMappingFromConfig(mPortIndex, id);
@@ -127,6 +140,25 @@ std::unordered_map<std::string, std::shared_ptr<ControllerRumbleMapping>> Contro
     return mRumbleMappings;
 }
 
+#ifdef __WIIU__
+bool ControllerRumble::AddRumbleMappingFromRawPress() {
+    std::shared_ptr<ControllerRumbleMapping> mapping = nullptr;
+
+    mapping = RumbleMappingFactory::CreateRumbleMappingFromWiiUInput(mPortIndex);
+
+    if (mapping == nullptr) {
+        return false;
+    }
+
+    AddRumbleMapping(mapping);
+    mapping->SaveToConfig();
+    SaveRumbleMappingIdsToConfig();
+    const std::string hasConfigCvarKey = StringHelper::Sprintf("gControllers.Port%d.HasConfig", mPortIndex + 1);
+    CVarSetInteger(hasConfigCvarKey.c_str(), true);
+    CVarSave();
+    return true;
+}
+#else
 bool ControllerRumble::AddRumbleMappingFromRawPress() {
     std::shared_ptr<ControllerRumbleMapping> mapping = nullptr;
 
@@ -144,6 +176,7 @@ bool ControllerRumble::AddRumbleMappingFromRawPress() {
     CVarSave();
     return true;
 }
+#endif
 
 bool ControllerRumble::HasMappingsForShipDeviceIndex(ShipDeviceIndex lusIndex) {
     return std::any_of(mRumbleMappings.begin(), mRumbleMappings.end(),

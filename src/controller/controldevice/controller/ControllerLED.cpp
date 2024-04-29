@@ -109,6 +109,23 @@ std::unordered_map<std::string, std::shared_ptr<ControllerLEDMapping>> Controlle
     return mLEDMappings;
 }
 
+#ifdef __WIIU__
+bool ControllerLED::AddLEDMappingFromRawPress() {
+    return false;
+    // std::shared_ptr<ControllerLEDMapping> mapping = nullptr;
+
+    // mapping = LEDMappingFactory::CreateLEDMappingFromSDLInput(mPortIndex);
+
+    // if (mapping == nullptr) {
+    //     return false;
+    // }
+
+    // AddLEDMapping(mapping);
+    // mapping->SaveToConfig();
+    // SaveLEDMappingIdsToConfig();
+    // return true;
+}
+#else
 bool ControllerLED::AddLEDMappingFromRawPress() {
     std::shared_ptr<ControllerLEDMapping> mapping = nullptr;
 
@@ -126,6 +143,7 @@ bool ControllerLED::AddLEDMappingFromRawPress() {
     CVarSave();
     return true;
 }
+#endif
 
 bool ControllerLED::HasMappingsForShipDeviceIndex(ShipDeviceIndex lusIndex) {
     return std::any_of(mLEDMappings.begin(), mLEDMappings.end(),
