@@ -6,6 +6,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include "install_config.h"
 #include "debug/GfxDebugger.h"
+#include "graphic/Fast3D/Fast3dWindow.h"
 
 #ifdef _WIN32
 #include <tchar.h>
@@ -26,9 +27,10 @@ std::shared_ptr<Context> Context::GetInstance() {
 
 Context::~Context() {
     SPDLOG_TRACE("destruct context");
+    GetWindow()->SaveWindowToConfig();
+
     // Explicitly destructing everything so that logging is done last.
     mAudio = nullptr;
-    GetWindow()->SaveWindowSizeToConfig(GetConfig());
     mWindow = nullptr;
     mConsole = nullptr;
     mCrashHandler = nullptr;
@@ -263,12 +265,12 @@ void Context::InitConsole() {
     GetConsole()->Init();
 }
 
-void Context::InitWindow(std::shared_ptr<GuiWindow> customInputEditorWindow) {
+void Context::InitWindow(std::vector<std::shared_ptr<GuiWindow>> guiWindows) {
     if (GetWindow() != nullptr) {
         return;
     }
 
-    mWindow = std::make_shared<Window>(customInputEditorWindow);
+    mWindow = std::make_shared<Fast::Fast3dWindow>(guiWindows);
     GetWindow()->Init();
 }
 

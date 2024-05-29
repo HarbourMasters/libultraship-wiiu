@@ -1,7 +1,9 @@
+#ifndef EXCLUDE_MPQ_SUPPORT
+
 #include "OtrArchive.h"
 
 #include "Context.h"
-#include "utils/binarytools/FileHelper.h"
+#include "utils/filesystemtools/FileHelper.h"
 #include "resource/ResourceManager.h"
 #include "resource/archive/ArchiveManager.h"
 
@@ -100,3 +102,5 @@ bool OtrArchive::Close() {
 }
 
 } // namespace Ship
+
+#endif // EXCLUDE_MPQ_SUPPORT

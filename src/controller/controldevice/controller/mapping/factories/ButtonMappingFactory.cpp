@@ -1,6 +1,6 @@
 #include "ButtonMappingFactory.h"
 #include "public/bridge/consolevariablebridge.h"
-#include <Utils/StringHelper.h>
+#include "utils/StringHelper.h"
 #include "libultraship/libultra/controller.h"
 #include "Context.h"
 #ifdef __WIIU__
@@ -16,7 +16,7 @@
 namespace Ship {
 std::shared_ptr<ControllerButtonMapping> ButtonMappingFactory::CreateButtonMappingFromConfig(uint8_t portIndex,
                                                                                              std::string id) {
-    const std::string mappingCvarKey = "gControllers.ButtonMappings." + id;
+    const std::string mappingCvarKey = CVAR_PREFIX_CONTROLLERS ".ButtonMappings." + id;
     const std::string mappingClass =
         CVarGetString(StringHelper::Sprintf("%s.ButtonMappingClass", mappingCvarKey.c_str()).c_str(), "");
     CONTROLLERBUTTONS_T bitmask =

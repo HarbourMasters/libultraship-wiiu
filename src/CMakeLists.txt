@@ -1,3 +1,5 @@
+include(../cmake/cvars.cmake)
+
 add_library(libultraship STATIC)
 set_target_properties(libultraship PROPERTIES PREFIX "")
 set_property(TARGET libultraship PROPERTY CXX_STANDARD 20)
@@ -81,7 +83,7 @@ file(GLOB Source_Files__Log RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "log/*.h" "log/
 
 source_group("log" FILES ${Source_Files__Log})
 
-target_sources(libultraship PRIVATE ${Source_Files__Log} ${Source_Files__Log__SPDLog})
+target_sources(libultraship PRIVATE ${Source_Files__Log})
 
 #=================== Window ===================
 
@@ -99,7 +101,7 @@ target_sources(libultraship PRIVATE ${Source_Files__Window__Gui})
 
 #=================== Utils ===================
 
-file(GLOB Source_Files__Utils RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "utils/*.h" "utils/*.cpp" "utils/*.c")
+file(GLOB_RECURSE Source_Files__Utils RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "utils/*.h" "utils/*.cpp" "utils/*.c")
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     list(APPEND Source_Files__Utils ${CMAKE_CURRENT_SOURCE_DIR}/utils/AppleFolderManager.mm)
@@ -110,13 +112,6 @@ endif()
 
 source_group("utils" FILES ${Source_Files__Utils})
 target_sources(libultraship PRIVATE ${Source_Files__Utils})
-
-#=================== BinaryTools ==================
-
-file(GLOB Source_Files__Utils__BinaryTools RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "utils/binarytools/*.h" "utils/binarytools/*.cpp")
-
-source_group("utils/binarytools" FILES ${Source_Files__Utils__BinaryTools})
-target_sources(libultraship PRIVATE ${Source_Files__Utils__BinaryTools})
 
 #=================== Port ===================
 
@@ -180,30 +175,11 @@ endif()
 source_group("graphic" FILES ${Source_Files__Graphic})
 target_sources(libultraship PRIVATE ${Source_Files__Graphic})
 
-#=================== metal-cpp ===================
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    target_include_directories(libultraship PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../extern/metal-cpp)
-endif()
-
-#=================== STB ===================
-# hack: no idea why wii u doesn't want to link this when we build it
-#       as a separate static lib
-if (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
-    set(Source_Files__Lib__stb
-        "${CMAKE_CURRENT_SOURCE_DIR}/../extern/stb/stb_image.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../extern/stb/stb_image_write.h"
-        "${CMAKE_CURRENT_SOURCE_DIR}/../extern/stb/stb_impl.c"
-    )
-    source_group("extern/stb" FILES ${Source_Files__Lib__stb})
-    target_sources(libultraship PRIVATE ${Source_Files__Lib__stb})
-endif()
-
 #=================== Packages & Includes ===================
 
 target_include_directories(libultraship
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../extern ${CMAKE_CURRENT_BINARY_DIR} $<$<BOOL:${GFX_DEBUG_DISASSEMBLER}>:${CMAKE_CURRENT_SOURCE_DIR}/../../ZAPDTR/lib/libgfxd>
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../extern/spdlog/include ${CMAKE_CURRENT_SOURCE_DIR}/../extern/stb ${ADDITIONAL_LIB_INCLUDES}
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${INCLUDE_DIR} ${ADDITIONAL_LIB_INCLUDES}
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
@@ -213,15 +189,16 @@ if (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
 endif()
 
 #=================== Linking ===================
-
-if (NOT CMAKE_SYSTEM_NAME STREQUAL "CafeOS" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    target_link_libraries(libultraship PUBLIC "$<LINK_LIBRARY:WHOLE_ARCHIVE,storm>")
-else()
-    target_link_libraries(libultraship PUBLIC storm)
+if(NOT EXCLUDE_MPQ_SUPPORT)
+    if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        target_link_libraries(libultraship PUBLIC "$<LINK_LIBRARY:WHOLE_ARCHIVE,storm>")
+    else()
+        target_link_libraries(libultraship PUBLIC storm)
+    endif()
 endif()
+
 target_link_libraries(libultraship
-    PRIVATE StrHash64
-    PUBLIC ZAPDUtils ImGui tinyxml2
+    PUBLIC ImGui
 )
 
 # hack cont.: wii u just includes these files, everyone
@@ -239,6 +216,12 @@ target_link_libraries(libultraship PRIVATE libzip::zip)
 
 find_package(nlohmann_json REQUIRED)
 target_link_libraries(libultraship PUBLIC nlohmann_json::nlohmann_json)
+
+find_package(tinyxml2 REQUIRED)
+target_link_libraries(libultraship PUBLIC tinyxml2::tinyxml2)
+
+find_package(spdlog REQUIRED)
+target_link_libraries(libultraship PUBLIC spdlog::spdlog)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -272,6 +255,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
         _CONSOLE
         _CRT_SECURE_NO_WARNINGS
         ENABLE_DX11
+        NOMINMAX
     )
 endif()
 

@@ -11,7 +11,6 @@
 #ifndef _LANGUAGE_C
 #define _LANGUAGE_C
 #endif
-#include "libultraship/libultra/gbi.h"
 
 #ifdef __MINGW32__
 #define FOR_WINDOWS 1
@@ -530,7 +529,7 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
         }
         append_line(fs_buf, &fs_len, ";");
 
-        if (c == 0) {
+        if (c == 0 && !CVarGetInteger(CVAR_DISABLE_CLOSE_COLOR_WRAP, 0)) {
             append_str(fs_buf, &fs_len, "texel.rgb = WRAP(texel.rgb, -1.01, 1.01);");
         }
     }
@@ -795,7 +794,7 @@ static void gfx_opengl_set_zmode_decal(bool zmode_decal) {
         const int n64modeFactor = 120;
         const int noVanishFactor = 100;
         GLfloat SSDB = -2;
-        switch (CVarGetInteger("gZFightingMode", 0)) {
+        switch (CVarGetInteger(CVAR_Z_FIGHTING_MODE, 0)) {
             // scaled z-fighting (N64 mode like)
             case 1:
                 if (framebuffers.size() > current_framebuffer) { // safety check for vector size can probably be removed
@@ -989,8 +988,7 @@ void gfx_opengl_start_draw_to_framebuffer(int fb_id, float noise_scale) {
 void gfx_opengl_clear_framebuffer() {
     glDisable(GL_SCISSOR_TEST);
     glDepthMask(GL_TRUE);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT);
     glDepthMask(current_depth_mask ? GL_TRUE : GL_FALSE);
     glEnable(GL_SCISSOR_TEST);
 }

@@ -4,9 +4,14 @@
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #endif
-#include <ImGui/imgui.h>
-#include <ImGui/imgui_internal.h>
+
+#include <imgui.h>
+#include <imgui_internal.h>
 #include <memory>
+#include <string>
+#include <map>
+#include <unordered_map>
+#include <vector>
 #include <SDL2/SDL.h>
 #include "window/gui/ConsoleWindow.h"
 #include "window/gui/InputEditorWindow.h"
@@ -63,7 +68,7 @@ typedef union {
 class Gui {
   public:
     Gui();
-    Gui(std::shared_ptr<GuiWindow> customInputEditorWindow);
+    Gui(std::vector<std::shared_ptr<GuiWindow>> guiWindows);
     ~Gui();
 
     void Init(GuiWindowInitData windowImpl);
@@ -109,7 +114,7 @@ class Gui {
     bool mNeedsConsoleVariableSave;
     std::shared_ptr<GameOverlay> mGameOverlay;
     std::shared_ptr<GuiMenuBar> mMenuBar;
-    std::map<std::string, GuiTextureMetadata> mGuiTextures;
+    std::unordered_map<std::string, GuiTextureMetadata> mGuiTextures;
     std::map<std::string, std::shared_ptr<GuiWindow>> mGuiWindows;
 };
 } // namespace Ship

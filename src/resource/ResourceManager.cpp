@@ -4,7 +4,7 @@
 #include "resource/archive/Archive.h"
 #include <algorithm>
 #include <thread>
-#include <Utils/StringHelper.h>
+#include "utils/StringHelper.h"
 #include "utils/glob.h"
 #include "public/bridge/consolevariablebridge.h"
 #include "Context.h"
@@ -63,7 +63,7 @@ ResourceManager::LoadResourceProcess(const std::string& filePath, bool loadExact
 
     // Attempt to load the alternate version of the asset, if we fail then we continue trying to load the standard
     // asset.
-    if (!loadExact && CVarGetInteger("gAltAssets", 0) && !filePath.starts_with(IResource::gAltAssetPrefix)) {
+    if (!loadExact && CVarGetInteger(CVAR_ALT_ASSETS, 0) && !filePath.starts_with(IResource::gAltAssetPrefix)) {
         const auto altPath = IResource::gAltAssetPrefix + filePath;
         auto altResource = LoadResourceProcess(altPath, loadExact, initData);
 
@@ -82,7 +82,7 @@ ResourceManager::LoadResourceProcess(const std::string& filePath, bool loadExact
 
     // Check for resource load errors which can indicate an alternate asset.
     // If we are attempting to load an alternate asset, we can return null
-    if (!loadExact && CVarGetInteger("gAltAssets", 0) && filePath.starts_with(IResource::gAltAssetPrefix)) {
+    if (!loadExact && CVarGetInteger(CVAR_ALT_ASSETS, 0) && filePath.starts_with(IResource::gAltAssetPrefix)) {
         if (std::holds_alternative<ResourceLoadError>(cacheLine)) {
             try {
                 // If we have attempted to cache an alternate asset, but failed, we return nullptr and rely on the
@@ -136,7 +136,7 @@ ResourceManager::LoadResourceProcess(const std::string& filePath, bool loadExact
 }
 
 std::shared_future<std::shared_ptr<Ship::IResource>>
-ResourceManager::LoadResourceAsync(const std::string& filePath, bool loadExact, bool priority,
+ResourceManager::LoadResourceAsync(const std::string& filePath, bool loadExact, BS::priority_t priority,
                                    std::shared_ptr<Ship::ResourceInitData> initData) {
     // Check for and remove the OTR signature
     if (OtrSignatureCheck(filePath.c_str())) {
@@ -154,16 +154,13 @@ ResourceManager::LoadResourceAsync(const std::string& filePath, bool loadExact, 
 
     const auto newFilePath = std::string(filePath);
 
-    if (priority) {
-        return mThreadPool->submit_front(&ResourceManager::LoadResourceProcess, this, newFilePath, loadExact, initData);
-    } else {
-        return mThreadPool->submit_back(&ResourceManager::LoadResourceProcess, this, newFilePath, loadExact, initData);
-    }
+    return mThreadPool->submit_task(
+        std::bind(&ResourceManager::LoadResourceProcess, this, newFilePath, loadExact, initData), priority);
 }
 
 std::shared_ptr<Ship::IResource> ResourceManager::LoadResource(const std::string& filePath, bool loadExact,
                                                                std::shared_ptr<Ship::ResourceInitData> initData) {
-    auto resource = LoadResourceAsync(filePath, loadExact, true, initData).get();
+    auto resource = LoadResourceAsync(filePath, loadExact, BS::pr::highest, initData).get();
     if (resource == nullptr) {
         SPDLOG_ERROR("Failed to load resource file at path {}", filePath);
     }
@@ -172,7 +169,7 @@ std::shared_ptr<Ship::IResource> ResourceManager::LoadResource(const std::string
 
 std::variant<ResourceManager::ResourceLoadError, std::shared_ptr<Ship::IResource>>
 ResourceManager::CheckCache(const std::string& filePath, bool loadExact) {
-    if (!loadExact && CVarGetInteger("gAltAssets", 0) && !filePath.starts_with(IResource::gAltAssetPrefix)) {
+    if (!loadExact && CVarGetInteger(CVAR_ALT_ASSETS, 0) && !filePath.starts_with(IResource::gAltAssetPrefix)) {
         const auto altPath = IResource::gAltAssetPrefix + filePath;
         auto altCacheResult = CheckCache(altPath, loadExact);
 
@@ -223,7 +220,7 @@ ResourceManager::GetCachedResource(std::variant<ResourceLoadError, std::shared_p
 }
 
 std::shared_ptr<std::vector<std::shared_future<std::shared_ptr<Ship::IResource>>>>
-ResourceManager::LoadDirectoryAsync(const std::string& searchMask, bool priority) {
+ResourceManager::LoadDirectoryAsync(const std::string& searchMask, BS::priority_t priority) {
     auto loadedList = std::make_shared<std::vector<std::shared_future<std::shared_ptr<Ship::IResource>>>>();
     auto fileList = GetArchiveManager()->ListFiles(searchMask);
     loadedList->reserve(fileList->size());

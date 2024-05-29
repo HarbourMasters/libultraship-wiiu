@@ -7,7 +7,7 @@
 #include "resource/archive/Archive.h"
 #include "resource/ResourceManager.h"
 #include "Context.h"
-#include <Utils/StringHelper.h>
+#include "utils/StringHelper.h"
 
 namespace Ship {
 GameOverlay::GameOverlay() {
@@ -23,6 +23,7 @@ void GameOverlay::LoadFont(const std::string& name, const std::string& path, flo
     initData->Format = RESOURCE_FORMAT_BINARY;
     initData->Type = static_cast<uint32_t>(RESOURCE_TYPE_FONT);
     initData->ResourceVersion = 0;
+    initData->Path = path;
     std::shared_ptr<Font> font = std::static_pointer_cast<Font>(
         Context::GetInstance()->GetResourceManager()->LoadResource(path, false, initData));
 

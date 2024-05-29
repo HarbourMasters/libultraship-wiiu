@@ -1,7 +1,5 @@
 #include <stdio.h>
 
-#include "libultraship/libultraship.h"
-
 #if defined(ENABLE_OPENGL) || defined(__APPLE__)
 
 #ifdef __MINGW32__
@@ -9,6 +7,9 @@
 #else
 #define FOR_WINDOWS 0
 #endif
+
+#include "Context.h"
+#include "config/ConsoleVariable.h"
 
 #if FOR_WINDOWS
 #include <GL/glew.h>
@@ -246,9 +247,10 @@ static void set_fullscreen(bool on, bool call_callback) {
         SDL_SetWindowPosition(wnd, posX, posY);
         SDL_SetWindowSize(wnd, window_width, window_height);
     }
-    if (SDL_SetWindowFullscreen(wnd, on ? (CVarGetInteger("gSdlWindowedFullscreen", 0) ? SDL_WINDOW_FULLSCREEN_DESKTOP
-                                                                                       : SDL_WINDOW_FULLSCREEN)
-                                        : 0) >= 0) {
+    if (SDL_SetWindowFullscreen(wnd,
+                                on ? (CVarGetInteger(CVAR_SDL_WINDOWED_FULLSCREEN, 0) ? SDL_WINDOW_FULLSCREEN_DESKTOP
+                                                                                      : SDL_WINDOW_FULLSCREEN)
+                                   : 0) >= 0) {
         fullscreen_state = on;
     } else {
         SPDLOG_ERROR("Failed to switch from or to fullscreen mode.");
@@ -437,15 +439,6 @@ static void gfx_sdl_set_keyboard_callbacks(bool (*on_key_down)(int scancode), bo
     on_all_keys_up_callback = on_all_keys_up;
 }
 
-static void gfx_sdl_main_loop(void (*run_one_game_iter)(void)) {
-    while (is_running) {
-        run_one_game_iter();
-    }
-
-    SDL_DestroyRenderer(renderer);
-    SDL_Quit();
-}
-
 static void gfx_sdl_get_dimensions(uint32_t* width, uint32_t* height, int32_t* posX, int32_t* posY) {
     SDL_GL_GetDrawableSize(wnd, static_cast<int*>((void*)width), static_cast<int*>((void*)height));
     SDL_GetWindowPosition(wnd, static_cast<int*>(posX), static_cast<int*>(posY));
@@ -506,9 +499,9 @@ static void gfx_sdl_handle_single_event(SDL_Event& event) {
             }
             break;
         case SDL_DROPFILE:
-            CVarSetString("gDroppedFile", event.drop.file);
-            CVarSetInteger("gNewFileDropped", 1);
-            CVarSave();
+            Ship::Context::GetInstance()->GetConsoleVariables()->SetString(CVAR_DROPPED_FILE, event.drop.file);
+            Ship::Context::GetInstance()->GetConsoleVariables()->SetInteger(CVAR_NEW_FILE_DROPPED, 1);
+            Ship::Context::GetInstance()->GetConsoleVariables()->Save();
             break;
         case SDL_QUIT:
             is_running = false;
@@ -604,6 +597,21 @@ bool gfx_sdl_can_disable_vsync() {
     return false;
 }
 
+bool gfx_sdl_is_running(void) {
+    return is_running;
+}
+
+void gfx_sdl_destroy(void) {
+    // TODO: destroy _any_ resources used by SDL
+
+    SDL_DestroyRenderer(renderer);
+    SDL_Quit();
+}
+
+bool gfx_sdl_is_fullscreen(void) {
+    return fullscreen_state;
+}
+
 struct GfxWindowManagerAPI gfx_sdl = { gfx_sdl_init,
                                        gfx_sdl_close,
                                        gfx_sdl_set_keyboard_callbacks,
@@ -611,7 +619,6 @@ struct GfxWindowManagerAPI gfx_sdl = { gfx_sdl_init,
                                        gfx_sdl_set_fullscreen,
                                        gfx_sdl_get_active_window_refresh_rate,
                                        gfx_sdl_set_cursor_visibility,
-                                       gfx_sdl_main_loop,
                                        gfx_sdl_get_dimensions,
                                        gfx_sdl_handle_events,
                                        gfx_sdl_start_frame,
@@ -621,6 +628,9 @@ struct GfxWindowManagerAPI gfx_sdl = { gfx_sdl_init,
                                        gfx_sdl_set_target_fps,
                                        gfx_sdl_set_maximum_frame_latency,
                                        gfx_sdl_get_key_name,
-                                       gfx_sdl_can_disable_vsync };
+                                       gfx_sdl_can_disable_vsync,
+                                       gfx_sdl_is_running,
+                                       gfx_sdl_destroy,
+                                       gfx_sdl_is_fullscreen };
 
 #endif

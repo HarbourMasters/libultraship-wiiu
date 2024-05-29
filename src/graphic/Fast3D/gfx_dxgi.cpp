@@ -21,7 +21,10 @@
 #ifndef _LANGUAGE_C
 #define _LANGUAGE_C
 #endif
-#include "libultraship/libultraship.h"
+
+#include "config/ConsoleVariable.h"
+#include "config/Config.h"
+#include "Context.h"
 
 #include "gfx_window_manager_api.h"
 #include "gfx_rendering_api.h"
@@ -85,7 +88,6 @@ static struct {
     LARGE_INTEGER previous_present_time;
 
     void (*on_fullscreen_changed)(bool is_now_fullscreen);
-    void (*run_one_game_iter)(void);
     bool (*on_key_down)(int scancode);
     bool (*on_key_up)(int scancode);
     void (*on_all_keys_up)(void);
@@ -353,9 +355,10 @@ static LRESULT CALLBACK gfx_dxgi_wnd_proc(HWND h_wnd, UINT message, WPARAM w_par
             break;
         case WM_DROPFILES:
             DragQueryFileA((HDROP)w_param, 0, fileName, 256);
-            CVarSetString("gDroppedFile", fileName);
-            CVarSetInteger("gNewFileDropped", 1);
-            CVarSave();
+            Ship::Context::GetInstance()->GetConsoleVariables()->SetString(CVAR_DROPPED_FILE, fileName);
+            Ship::Context::GetInstance()->GetConsoleVariables()->SetInteger(CVAR_NEW_FILE_DROPPED, 1);
+            Ship::Context::GetInstance()->GetConsoleVariables()->Save();
+
             break;
         case WM_DISPLAYCHANGE:
             dxgi.monitor_list = GetMonitorList();
@@ -492,13 +495,6 @@ static void gfx_dxgi_set_keyboard_callbacks(bool (*on_key_down)(int scancode), b
     dxgi.on_key_down = on_key_down;
     dxgi.on_key_up = on_key_up;
     dxgi.on_all_keys_up = on_all_keys_up;
-}
-
-static void gfx_dxgi_main_loop(void (*run_one_game_iter)(void)) {
-    dxgi.run_one_game_iter = run_one_game_iter;
-    while (dxgi.is_running) {
-        dxgi.run_one_game_iter();
-    }
 }
 
 static void gfx_dxgi_get_dimensions(uint32_t* width, uint32_t* height, int32_t* posX, int32_t* posY) {
@@ -667,9 +663,11 @@ static bool gfx_dxgi_start_frame(void) {
     // dxgi.length_in_vsync_frames is used as present interval. Present interval >1 (aka fractional V-Sync)
     // breaks VRR and introduces even more input lag than capping via normal V-Sync does.
     // Get the present interval the user wants instead (V-Sync toggle).
-    if (dxgi.is_vsync_enabled != CVarGetInteger("gVsyncEnabled", 1)) {
+    if (dxgi.is_vsync_enabled !=
+        Ship::Context::GetInstance()->GetConsoleVariables()->GetInteger(CVAR_VSYNC_ENABLED, 1)) {
         // Make sure only 0 or 1 is set, as present interval technically accepts a range from 0 to 4.
-        dxgi.is_vsync_enabled = !!CVarGetInteger("gVsyncEnabled", 1);
+        dxgi.is_vsync_enabled =
+            !!Ship::Context::GetInstance()->GetConsoleVariables()->GetInteger(CVAR_VSYNC_ENABLED, 1);
     }
     dxgi.length_in_vsync_frames = dxgi.is_vsync_enabled;
     return true;
@@ -701,13 +699,12 @@ static void gfx_dxgi_swap_buffers_begin(void) {
             li.QuadPart = -left;
             SetWaitableTimer(dxgi.timer, &li, 0, nullptr, nullptr, false);
             WaitForSingleObject(dxgi.timer, INFINITE);
-
-            do {
-                YieldProcessor();
-                QueryPerformanceCounter(&t);
-                t.QuadPart = qpc_to_100ns(t.QuadPart);
-            } while (t.QuadPart < next);
         }
+        do {
+            YieldProcessor();
+            QueryPerformanceCounter(&t);
+            t.QuadPart = qpc_to_100ns(t.QuadPart);
+        } while (t.QuadPart < next);
     }
     QueryPerformanceCounter(&t);
     dxgi.previous_present_time = t;
@@ -857,6 +854,10 @@ void gfx_dxgi_create_swap_chain(IUnknown* device, std::function<void()>&& before
     dxgi.before_destroy_swap_chain_fn = std::move(before_destroy_fn);
 }
 
+bool gfx_dxgi_is_running(void) {
+    return dxgi.is_running;
+}
+
 HWND gfx_dxgi_get_h_wnd(void) {
     return dxgi.h_wnd;
 }
@@ -891,6 +892,14 @@ bool gfx_dxgi_can_disable_vsync() {
     return dxgi.tearing_support;
 }
 
+void gfx_dxgi_destroy(void) {
+    // TODO: destroy _any_ resources used by dxgi, including the window handle
+}
+
+bool gfx_dxgi_is_fullscreen(void) {
+    return dxgi.is_full_screen;
+}
+
 extern "C" struct GfxWindowManagerAPI gfx_dxgi_api = { gfx_dxgi_init,
                                                        gfx_dxgi_close,
                                                        gfx_dxgi_set_keyboard_callbacks,
@@ -898,7 +907,6 @@ extern "C" struct GfxWindowManagerAPI gfx_dxgi_api = { gfx_dxgi_init,
                                                        gfx_dxgi_set_fullscreen,
                                                        gfx_dxgi_get_active_window_refresh_rate,
                                                        gfx_dxgi_set_cursor_visibility,
-                                                       gfx_dxgi_main_loop,
                                                        gfx_dxgi_get_dimensions,
                                                        gfx_dxgi_handle_events,
                                                        gfx_dxgi_start_frame,
@@ -908,6 +916,9 @@ extern "C" struct GfxWindowManagerAPI gfx_dxgi_api = { gfx_dxgi_init,
                                                        gfx_dxgi_set_target_fps,
                                                        gfx_dxgi_set_maximum_frame_latency,
                                                        gfx_dxgi_get_key_name,
-                                                       gfx_dxgi_can_disable_vsync };
+                                                       gfx_dxgi_can_disable_vsync,
+                                                       gfx_dxgi_is_running,
+                                                       gfx_dxgi_destroy,
+                                                       gfx_dxgi_is_fullscreen };
 
 #endif

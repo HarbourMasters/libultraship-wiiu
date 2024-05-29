@@ -28,7 +28,7 @@
 #define MTL_PRIVATE_IMPLEMENTATION
 #include <Metal/Metal.hpp>
 #include <SDL_render.h>
-#include <ImGui/backends/imgui_impl_metal.h>
+#include <imgui_impl_metal.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/fmt.h>
 
@@ -36,7 +36,6 @@
 #include "gfx_pc.h"
 #include "gfx_metal_shader.h"
 
-#include "libultraship/libultra/gbi.h"
 #include "libultraship/libultra/abi.h"
 #include "public/bridge/consolevariablebridge.h"
 
@@ -164,6 +163,7 @@ static struct {
     int8_t depth_test;
     int8_t depth_mask;
     int8_t zmode_decal;
+    bool non_uniform_threadgroup_supported;
 } mctx;
 
 // MARK: - Helpers
@@ -199,6 +199,16 @@ bool Metal_IsSupported() {
 #endif
 }
 
+bool Metal_NonUniformThreadGroupSupported() {
+#ifdef __IOS__
+    // iOS devices with A11 or later support dispatch threads
+    return mctx.device->supportsFamily(MTL::GPUFamilyApple4);
+#else
+    // macOS devices with Metal 2 support dispatch threads
+    return mctx.device->supportsFamily(MTL::GPUFamilyMac2);
+#endif
+}
+
 bool Metal_Init(SDL_Renderer* renderer) {
     mctx.renderer = renderer;
     NS::AutoreleasePool* autorelease_pool = NS::AutoreleasePool::alloc()->init();
@@ -216,6 +226,7 @@ bool Metal_Init(SDL_Renderer* renderer) {
     }
 
     autorelease_pool->release();
+    mctx.non_uniform_threadgroup_supported = Metal_NonUniformThreadGroupSupported();
 
     return ImGui_ImplMetal_Init(mctx.device);
 }
@@ -737,11 +748,9 @@ static void gfx_metal_setup_screen_framebuffer(uint32_t width, uint32_t height) 
     tex.texture = mctx.current_drawable->texture();
 
     MTL::RenderPassDescriptor* render_pass_descriptor = MTL::RenderPassDescriptor::renderPassDescriptor();
-    MTL::ClearColor clear_color = MTL::ClearColor::Make(0, 0, 0, 1);
     render_pass_descriptor->colorAttachments()->object(0)->setTexture(tex.texture);
-    render_pass_descriptor->colorAttachments()->object(0)->setLoadAction(MTL::LoadActionClear);
+    render_pass_descriptor->colorAttachments()->object(0)->setLoadAction(MTL::LoadActionLoad);
     render_pass_descriptor->colorAttachments()->object(0)->setStoreAction(MTL::StoreActionStore);
-    render_pass_descriptor->colorAttachments()->object(0)->setClearColor(clear_color);
 
     tex.width = width;
     tex.height = height;
@@ -840,20 +849,17 @@ static void gfx_metal_update_framebuffer_parameters(int fb_id, uint32_t width, u
 
             bool fb_msaa_enabled = (msaa_level > 1);
             bool game_msaa_enabled = CVarGetInteger("gMSAAValue", 1) > 1;
-            MTL::ClearColor clear_color = MTL::ClearColor::Make(0.0, 0.0, 0.0, 1.0);
 
             if (fb_msaa_enabled) {
                 render_pass_descriptor->colorAttachments()->object(0)->setTexture(tex.msaaTexture);
                 render_pass_descriptor->colorAttachments()->object(0)->setResolveTexture(tex.texture);
-                render_pass_descriptor->colorAttachments()->object(0)->setLoadAction(MTL::LoadActionClear);
+                render_pass_descriptor->colorAttachments()->object(0)->setLoadAction(MTL::LoadActionLoad);
                 render_pass_descriptor->colorAttachments()->object(0)->setStoreAction(
                     MTL::StoreActionStoreAndMultisampleResolve);
-                render_pass_descriptor->colorAttachments()->object(0)->setClearColor(clear_color);
             } else {
                 render_pass_descriptor->colorAttachments()->object(0)->setTexture(tex.texture);
-                render_pass_descriptor->colorAttachments()->object(0)->setLoadAction(MTL::LoadActionClear);
+                render_pass_descriptor->colorAttachments()->object(0)->setLoadAction(MTL::LoadActionLoad);
                 render_pass_descriptor->colorAttachments()->object(0)->setStoreAction(MTL::StoreActionStore);
-                render_pass_descriptor->colorAttachments()->object(0)->setClearColor(clear_color);
             }
 
             if (fb.render_pass_descriptor != nullptr)
@@ -1051,7 +1057,13 @@ gfx_metal_get_pixel_depth(int fb_id, const std::set<std::pair<float, float>>& co
     MTL::Size thread_group_size = MTL::Size::Make(1, 1, 1);
     MTL::Size thread_group_count = MTL::Size::Make(coordinates.size(), 1, 1);
 
-    compute_encoder->dispatchThreads(thread_group_count, thread_group_size);
+    // We validate if the device supports non-uniform threadgroup sizes
+    if (mctx.non_uniform_threadgroup_supported) {
+        compute_encoder->dispatchThreads(thread_group_count, thread_group_size);
+    } else {
+        compute_encoder->dispatchThreadgroups(thread_group_count, thread_group_size);
+    }
+
     compute_encoder->endEncoding();
 
     command_buffer->commit();
@@ -1176,7 +1188,12 @@ void gfx_metal_read_framebuffer_to_cpu(int fb_id, uint32_t width, uint32_t heigh
     MTL::Size thread_group_size = MTL::Size::Make(1, 1, 1);
     MTL::Size thread_group_count = MTL::Size::Make(width, height, 1);
 
-    compute_encoder->dispatchThreads(thread_group_count, thread_group_size);
+    // We validate if the device supports non-uniform threadgroup sizes
+    if (mctx.non_uniform_threadgroup_supported) {
+        compute_encoder->dispatchThreads(thread_group_count, thread_group_size);
+    } else {
+        compute_encoder->dispatchThreadgroups(thread_group_count, thread_group_size);
+    }
     compute_encoder->endEncoding();
 
     // Use a completion handler to wait for the GPU to be done without blocking the thread
