@@ -74,7 +74,7 @@ int32_t ControllerReorderingWindow::GetWiiUDeviceFromWiiUInput() {
             switch (kstatus->extensionType) {
                 case WPAD_EXT_NUNCHUK:
                 case WPAD_EXT_MPLUS_NUNCHUK:
-                    if (kstatus->nunchuck.hold) {
+                    if (kstatus->nunchuk.hold) {
                         return channel;
                     }
                     break;

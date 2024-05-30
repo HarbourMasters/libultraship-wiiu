@@ -291,7 +291,7 @@ bool WiiUButtonToAnyMapping::PhysicalButtonIsPressed() {
     }
 
     if (mIsNunchukButton) {
-        return status->nunchuck.hold & mControllerButton;
+        return status->nunchuk.hold & mControllerButton;
     }
 
     return status->hold & mControllerButton;

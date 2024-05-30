@@ -441,7 +441,7 @@ ButtonMappingFactory::CreateButtonMappingFromWiiUInput(uint8_t portIndex, CONTRO
                 for (auto i : { WPAD_NUNCHUK_STICK_EMULATION_LEFT, WPAD_NUNCHUK_STICK_EMULATION_RIGHT,
                                 WPAD_NUNCHUK_STICK_EMULATION_DOWN, WPAD_NUNCHUK_STICK_EMULATION_UP,
                                 WPAD_NUNCHUK_BUTTON_Z, WPAD_NUNCHUK_BUTTON_C }) {
-                    if (!(kstatus->nunchuck.hold & i)) {
+                    if (!(kstatus->nunchuk.hold & i)) {
                         continue;
                     }
 

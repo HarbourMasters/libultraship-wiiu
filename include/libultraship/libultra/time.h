@@ -3,7 +3,12 @@
 
 #include "message.h"
 
+#ifdef __WIIU__
+// FIXME not good, conflicts with the wut type otherwise
+typedef s64 OSTime;
+#else
 typedef u64 OSTime;
+#endif
 
 typedef struct OSTimer {
     /* 0x00 */ struct OSTimer* next;

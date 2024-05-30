@@ -78,10 +78,10 @@ float WiiUAxisDirectionToAxisDirectionMapping::GetNormalizedAxisDirectionValue()
             case WPAD_EXT_MPLUS_NUNCHUK:
                 switch (mControllerAxis) {
                     case WII_U_AXIS_NUNCHUK_STICK_X:
-                        wiiUAxisValue = status->nunchuck.stick.x;
+                        wiiUAxisValue = status->nunchuk.stick.x;
                         break;
                     case WII_U_AXIS_NUNCHUK_STICK_Y:
-                        wiiUAxisValue = status->nunchuck.stick.y * -1.0;
+                        wiiUAxisValue = status->nunchuk.stick.y * -1.0;
                         break;
                 }
                 break;
