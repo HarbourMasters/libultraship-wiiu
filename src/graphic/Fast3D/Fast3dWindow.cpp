@@ -9,6 +9,8 @@
 #include "graphic/Fast3D/gfx_metal.h"
 #include "graphic/Fast3D/gfx_direct3d11.h"
 #include "graphic/Fast3D/gfx_direct3d12.h"
+#include "graphic/Fast3D/gfx_wiiu.h"
+#include "graphic/Fast3D/gfx_gx2.h"
 #include "graphic/Fast3D/gfx_pc.h"
 
 #include <fstream>
@@ -128,6 +130,12 @@ void Fast3dWindow::InitWindowManager() {
             mWindowManagerApi = &gfx_sdl;
             break;
 #endif
+#ifdef __WIIU__
+        case Ship::WindowBackend::GX2:
+            mRenderingApi = &gfx_gx2_api;
+            mWindowManagerApi = &gfx_wiiu;
+            break;
+#endif
         default:
             SPDLOG_ERROR("Could not load the correct rendering backend");
             break;
@@ -229,6 +237,9 @@ const char* Fast3dWindow::GetKeyName(int32_t scancode) {
 }
 
 bool Fast3dWindow::KeyUp(int32_t scancode) {
+#ifdef __WIIU__
+    return false;
+#else
     if (scancode ==
         Ship::Context::GetInstance()->GetConfig()->GetInt("Shortcuts.Fullscreen", Ship::KbScancode::LUS_KB_F11)) {
         Ship::Context::GetInstance()->GetWindow()->ToggleFullscreen();
@@ -237,19 +248,26 @@ bool Fast3dWindow::KeyUp(int32_t scancode) {
     Ship::Context::GetInstance()->GetWindow()->SetLastScancode(-1);
     return Ship::Context::GetInstance()->GetControlDeck()->ProcessKeyboardEvent(
         Ship::KbEventType::LUS_KB_EVENT_KEY_UP, static_cast<Ship::KbScancode>(scancode));
+#endif
 }
 
 bool Fast3dWindow::KeyDown(int32_t scancode) {
+#ifdef __WIIU__
+    return false;
+#else
     bool isProcessed = Ship::Context::GetInstance()->GetControlDeck()->ProcessKeyboardEvent(
         Ship::KbEventType::LUS_KB_EVENT_KEY_DOWN, static_cast<Ship::KbScancode>(scancode));
     Ship::Context::GetInstance()->GetWindow()->SetLastScancode(scancode);
 
     return isProcessed;
+#endif
 }
 
 void Fast3dWindow::AllKeysUp(void) {
+#ifndef __WIIU__
     Ship::Context::GetInstance()->GetControlDeck()->ProcessKeyboardEvent(Ship::KbEventType::LUS_KB_EVENT_ALL_KEYS_UP,
                                                                          Ship::KbScancode::LUS_KB_UNKNOWN);
+#endif
 }
 
 void Fast3dWindow::OnFullscreenChanged(bool isNowFullscreen) {

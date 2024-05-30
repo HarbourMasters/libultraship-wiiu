@@ -23,8 +23,8 @@
 #ifdef __WIIU__
 #include <gx2/registers.h> // GX2SetViewport / GX2SetScissor
 
-#include <ImGui/backends/wiiu/imgui_impl_gx2.h>
-#include <ImGui/backends/wiiu/imgui_impl_wiiu.h>
+#include <port/wiiu/ImGui/imgui_impl_gx2.h>
+#include <port/wiiu/ImGui/imgui_impl_wiiu.h>
 
 #include "graphic/Fast3D/gfx_wiiu.h"
 #include "graphic/Fast3D/gfx_gx2.h"

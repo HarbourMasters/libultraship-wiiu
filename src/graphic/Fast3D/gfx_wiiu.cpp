@@ -37,7 +37,7 @@
 #include "gfx_gx2.h"
 #include "gfx_wiiu.h"
 
-#include <ImGui/backends/wiiu/imgui_impl_wiiu.h>
+#include <port/wiiu/ImGui/imgui_impl_wiiu.h>
 #include "port/wiiu/WiiUImpl.h"
 #include "libultraship/classes.h"
 
@@ -352,18 +352,6 @@ static void gfx_wiiu_set_keyboard_callbacks(bool (*on_key_down)(int scancode), b
                                             void (*on_all_keys_up)(void)) {
 }
 
-static void gfx_wiiu_main_loop(void (*run_one_game_iter)(void)) {
-    while (WHBProcIsRunning()) {
-        run_one_game_iter();
-    }
-
-    Ship::WiiU::Exit();
-
-    gfx_gx2_shutdown();
-    gfx_wiiu_shutdown();
-    WHBProcShutdown();
-}
-
 static void gfx_wiiu_get_dimensions(uint32_t* width, uint32_t* height, int32_t* posX, int32_t* posY) {
     *width = WIIU_DEFAULT_FB_WIDTH;
     *height = WIIU_DEFAULT_FB_HEIGHT;
@@ -463,6 +451,22 @@ bool gfx_wiiu_can_disable_vsync() {
     return false;
 }
 
+bool gfx_wiiu_is_running(void) {
+    return WHBProcIsRunning();
+}
+
+void gfx_wiiu_destroy(void) {
+    Ship::WiiU::Exit();
+
+    gfx_gx2_shutdown();
+    gfx_wiiu_shutdown();
+    WHBProcShutdown();
+}
+
+bool gfx_wiiu_is_fullscreen(void) {
+    return true;
+}
+
 struct GfxWindowManagerAPI gfx_wiiu = {
     gfx_wiiu_init,
     gfx_wiiu_close,
@@ -471,7 +475,6 @@ struct GfxWindowManagerAPI gfx_wiiu = {
     gfx_wiiu_set_fullscreen,
     gfx_wiiu_get_active_window_refresh_rate,
     gfx_wiiu_show_cursor,
-    gfx_wiiu_main_loop,
     gfx_wiiu_get_dimensions,
     gfx_wiiu_handle_events,
     gfx_wiiu_start_frame,
@@ -482,6 +485,8 @@ struct GfxWindowManagerAPI gfx_wiiu = {
     gfx_wiiu_set_maximum_frame_latency,
     gfx_wiiu_get_key_name,
     gfx_wiiu_can_disable_vsync,
-};
+    gfx_wiiu_is_running,
+    gfx_wiiu_destroy,
+    gfx_wiiu_is_fullscreen };
 
 #endif

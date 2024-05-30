@@ -23,11 +23,13 @@ target_sources(ImGui
     ${imgui_SOURCE_DIR}/imgui.cpp
 )
 
-target_sources(ImGui
-    PRIVATE
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp
-)
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
+    target_sources(ImGui
+        PRIVATE
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl2.cpp
+    )
+endif()
 
 target_include_directories(ImGui PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends PRIVATE ${SDL2_INCLUDE_DIRS})
 
@@ -57,6 +59,12 @@ target_sources(stb PRIVATE
     ${STB_DIR}/stb_image.h
     ${STB_DIR}/stb_impl.c
 )
+
+if (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
+    target_compile_definitions(stb PUBLIC
+        STBI_NO_THREAD_LOCALS
+    )
+endif()
 
 target_include_directories(stb PUBLIC ${STB_DIR})
 list(APPEND ADDITIONAL_LIB_INCLUDES ${STB_DIR})
@@ -90,11 +98,13 @@ if (GFX_DEBUG_DISASSEMBLER)
 endif()
 
 #======== thread-pool ========
-FetchContent_Declare(
-    ThreadPool
-    GIT_REPOSITORY https://github.com/bshoshany/thread-pool.git
-    GIT_TAG v4.1.0
-)
-FetchContent_MakeAvailable(ThreadPool)
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
+    FetchContent_Declare(
+        ThreadPool
+        GIT_REPOSITORY https://github.com/bshoshany/thread-pool.git
+        GIT_TAG v4.1.0
+    )
+    FetchContent_MakeAvailable(ThreadPool)
 
-list(APPEND ADDITIONAL_LIB_INCLUDES ${threadpool_SOURCE_DIR}/include)
+    list(APPEND ADDITIONAL_LIB_INCLUDES ${threadpool_SOURCE_DIR}/include)
+endif()

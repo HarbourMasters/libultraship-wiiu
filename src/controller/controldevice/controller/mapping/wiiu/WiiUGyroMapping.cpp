@@ -5,7 +5,7 @@
 #include "Context.h"
 
 #include "public/bridge/consolevariablebridge.h"
-#include <Utils/StringHelper.h>
+#include "utils/StringHelper.h"
 
 namespace Ship {
 WiiUGyroMapping::WiiUGyroMapping(ShipDeviceIndex shipDeviceIndex, uint8_t portIndex, float sensitivity,

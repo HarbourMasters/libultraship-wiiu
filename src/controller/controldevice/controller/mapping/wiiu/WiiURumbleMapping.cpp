@@ -2,7 +2,7 @@
 #include "WiiURumbleMapping.h"
 
 #include "public/bridge/consolevariablebridge.h"
-#include <Utils/StringHelper.h>
+#include "utils/StringHelper.h"
 
 namespace Ship {
 WiiURumbleMapping::WiiURumbleMapping(ShipDeviceIndex shipDeviceIndex, uint8_t portIndex,

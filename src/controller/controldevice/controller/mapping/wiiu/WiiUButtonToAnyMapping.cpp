@@ -1,7 +1,7 @@
 #ifdef __WIIU__
 #include "WiiUButtonToAnyMapping.h"
 
-#include <Utils/StringHelper.h>
+#include "utils/StringHelper.h"
 #include "window/gui/IconsFontAwesome4.h"
 
 namespace Ship {

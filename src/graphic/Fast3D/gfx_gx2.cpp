@@ -39,7 +39,7 @@
 #include <proc_ui/procui.h>
 #include <coreinit/memory.h>
 
-#include <ImGui/backends/wiiu/imgui_impl_gx2.h>
+#include <port/wiiu/ImGui/imgui_impl_gx2.h>
 
 #define ALIGN(x, align) (((x) + ((align)-1)) & ~((align)-1))
 

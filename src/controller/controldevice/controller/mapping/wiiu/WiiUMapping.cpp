@@ -4,7 +4,7 @@
 #include "Context.h"
 #include "controller/deviceindex/ShipDeviceIndexToWiiUDeviceIndexMapping.h"
 
-#include <Utils/StringHelper.h>
+#include "utils/StringHelper.h"
 
 namespace Ship {
 WiiUMapping::WiiUMapping(ShipDeviceIndex shipDeviceIndex) : ControllerMapping(shipDeviceIndex) {

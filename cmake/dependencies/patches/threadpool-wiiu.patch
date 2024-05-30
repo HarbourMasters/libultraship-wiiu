@@ -1,0 +1,156 @@
+--- a/threadpool-src/include/BS_thread_pool.hpp
++++ b/threadpool-src/include/BS_thread_pool.hpp
+@@ -37,6 +37,9 @@
+ #include <type_traits>        // std::conditional_t, std::decay_t, std::invoke_result_t, std::is_void_v, std::remove_const_t (if priority enabled)
+ #include <utility>            // std::forward, std::move
+ #include <vector>             // std::vector
++#ifdef __WIIU__
++    #include <bits/gthr.h>
++#endif
+ 
+ /**
+  * @brief A namespace used by Barak Shoshany's projects.
+@@ -106,6 +109,19 @@
+         friend class BS::thread_pool;
+ 
+     public:
++#ifdef __WIIU__
++        thread_info_index()
++        {
++            __gthread_key_create(&key, nullptr);
++            __gthread_setspecific(key, reinterpret_cast<const void*>(-1L));
++        }
++
++        ~thread_info_index()
++        {
++            __gthread_key_delete(key);
++        }
++#endif
++
+         /**
+          * @brief Get the index of the current thread. If this thread belongs to a `BS::thread_pool` object, it will have an index from 0 to `BS::thread_pool::get_thread_count() - 1`. Otherwise, for example if this thread is the main thread or an independent `std::thread`, `std::nullopt` will be returned.
+          *
+@@ -113,14 +129,30 @@
+          */
+         [[nodiscard]] optional_index operator()() const
+         {
++#ifdef __WIIU__
++            size_t index = reinterpret_cast<size_t>(__gthread_getspecific(key));
++            if (index == static_cast<size_t>(-1L))
++            {
++                return std::nullopt;
++            }
++#endif
+             return index;
+         }
+ 
+     private:
++#ifdef __WIIU__
++        void set_index(size_t index)
++        {
++            __gthread_setspecific(key, reinterpret_cast<const void*>(index));
++        }
++
++        __gthread_key_t key;
++#else
+         /**
+          * @brief The index of the current thread.
+          */
+         optional_index index = std::nullopt;
++#endif
+     }; // class thread_info_index
+ 
+     /**
+@@ -131,6 +163,19 @@
+         friend class BS::thread_pool;
+ 
+     public:
++#ifdef __WIIU__
++        thread_info_pool()
++        {
++            __gthread_key_create(&key, nullptr);
++            __gthread_setspecific(key, nullptr);
++        }
++
++        ~thread_info_pool()
++        {
++            __gthread_key_delete(key);
++        }
++#endif
++
+         /**
+          * @brief Get the pointer to the thread pool that owns the current thread. If this thread belongs to a `BS::thread_pool` object, a pointer to that object will be returned. Otherwise, for example if this thread is the main thread or an independent `std::thread`, `std::nullopt` will be returned.
+          *
+@@ -138,16 +183,33 @@
+          */
+         [[nodiscard]] optional_pool operator()() const
+         {
++#ifdef __WIIU__
++            thread_pool* pool = static_cast<thread_pool*>(__gthread_getspecific(key));
++            if (pool == nullptr)
++            {
++                return std::nullopt;
++            }
++#endif
+             return pool;
+         }
+ 
+     private:
++#ifdef __WIIU__
++        void set_pool(thread_pool* pool)
++        {
++            __gthread_setspecific(key, pool);
++        }
++
++        __gthread_key_t key;
++#else
+         /**
+          * @brief A pointer to the thread pool that owns the current thread.
+          */
+         optional_pool pool = std::nullopt;
++#endif
+     }; // class thread_info_pool
+ 
++#ifndef __WIIU__
+     /**
+      * @brief A `thread_local` object used to obtain information about the index of the current thread.
+      */
+@@ -157,6 +219,10 @@
+      * @brief A `thread_local` object used to obtain information about the thread pool that owns the current thread.
+      */
+     inline thread_local thread_info_pool get_pool;
++#else
++    inline thread_info_index get_index;
++    inline thread_info_pool get_pool;
++#endif
+ } // namespace this_thread
+ 
+ /**
+@@ -906,8 +972,13 @@
+      */
+     void worker(const concurrency_t idx, const std::function<void()>& init_task)
+     {
++#ifdef __WIIU__
++        this_thread::get_index.set_index(idx);
++        this_thread::get_pool.set_pool(this);
++#else
+         this_thread::get_index.index = idx;
+         this_thread::get_pool.pool = this;
++#endif
+         init_task();
+         std::unique_lock tasks_lock(tasks_mutex);
+         while (true)
+@@ -938,8 +1009,13 @@
+             }
+             tasks_lock.lock();
+         }
++#ifdef __WIIU__
++        this_thread::get_index.set_index(static_cast<size_t>(-1L));
++        this_thread::get_pool.set_pool(nullptr);
++#else
+         this_thread::get_index.index = std::nullopt;
+         this_thread::get_pool.pool = std::nullopt;
++#endif
+     }
+ 
+     // ===============

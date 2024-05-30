@@ -119,6 +119,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
     set(Source_Files__Port
         ${CMAKE_CURRENT_SOURCE_DIR}/port/wiiu/WiiUImpl.h
         ${CMAKE_CURRENT_SOURCE_DIR}/port/wiiu/WiiUImpl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/wiiu/ImGui/imgui_impl_gx2.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/wiiu/ImGui/imgui_impl_wiiu.cpp
     )
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set(Source_Files__Port
@@ -190,7 +192,7 @@ endif()
 
 #=================== Linking ===================
 if(NOT EXCLUDE_MPQ_SUPPORT)
-    if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" AND NOT CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
         target_link_libraries(libultraship PUBLIC "$<LINK_LIBRARY:WHOLE_ARCHIVE,storm>")
     else()
         target_link_libraries(libultraship PUBLIC storm)
@@ -201,11 +203,7 @@ target_link_libraries(libultraship
     PUBLIC ImGui
 )
 
-# hack cont.: wii u just includes these files, everyone
-#             else handles linking it just fine
-if (NOT CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
-    target_link_libraries(libultraship PRIVATE stb)
-endif()
+target_link_libraries(libultraship PRIVATE stb)
 
 if (GFX_DEBUG_DISASSEMBLER)
     target_link_libraries(libultraship PRIVATE libgfxd)
@@ -269,9 +267,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
     target_compile_definitions(libultraship PRIVATE
         $<$<CONFIG:Debug>:_DEBUG>
         $<$<NOT:$<CONFIG:Debug>>:NDEBUG>
-        SPDLOG_NO_THREAD_ID
-        SPDLOG_NO_TLS
-        STBI_NO_THREAD_LOCALS
         SPDLOG_ACTIVE_LEVEL=3
     )
 elseif (CMAKE_SYSTEM_NAME STREQUAL "iOS")
