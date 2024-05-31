@@ -77,7 +77,7 @@ std::string ShipDeviceIndexToWiiUDeviceIndexMapping::GetWiiUControllerName() {
 }
 
 void ShipDeviceIndexToWiiUDeviceIndexMapping::SaveToConfig() {
-    const std::string mappingCvarKey = "gControllers.DeviceMappings." + GetMappingId();
+    const std::string mappingCvarKey = CVAR_PREFIX_CONTROLLERS ".DeviceMappings." + GetMappingId();
     CVarSetString(StringHelper::Sprintf("%s.DeviceMappingClass", mappingCvarKey.c_str()).c_str(),
                   "ShipDeviceIndexToWiiUDeviceIndexMapping");
     CVarSetInteger(StringHelper::Sprintf("%s.ShipDeviceIndex", mappingCvarKey.c_str()).c_str(), mShipDeviceIndex);
@@ -88,7 +88,7 @@ void ShipDeviceIndexToWiiUDeviceIndexMapping::SaveToConfig() {
 }
 
 void ShipDeviceIndexToWiiUDeviceIndexMapping::EraseFromConfig() {
-    const std::string mappingCvarKey = "gControllers.DeviceMappings." + GetMappingId();
+    const std::string mappingCvarKey = CVAR_PREFIX_CONTROLLERS ".DeviceMappings." + GetMappingId();
 
     CVarClear(StringHelper::Sprintf("%s.DeviceMappingClass", mappingCvarKey.c_str()).c_str());
     CVarClear(StringHelper::Sprintf("%s.ShipDeviceIndex", mappingCvarKey.c_str()).c_str());

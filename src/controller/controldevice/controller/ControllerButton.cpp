@@ -188,7 +188,7 @@ bool ControllerButton::AddOrEditButtonMappingFromRawPress(CONTROLLERBUTTONS_T bi
     AddButtonMapping(mapping);
     mapping->SaveToConfig();
     SaveButtonMappingIdsToConfig();
-    const std::string hasConfigCvarKey = StringHelper::Sprintf("gControllers.Port%d.HasConfig", mPortIndex + 1);
+    const std::string hasConfigCvarKey = StringHelper::Sprintf(CVAR_PREFIX_CONTROLLERS ".Port%d.HasConfig", mPortIndex + 1);
     CVarSetInteger(hasConfigCvarKey.c_str(), true);
     CVarSave();
     return true;

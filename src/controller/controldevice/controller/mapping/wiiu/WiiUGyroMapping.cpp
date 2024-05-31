@@ -60,7 +60,7 @@ std::string WiiUGyroMapping::GetGyroMappingId() {
 }
 
 void WiiUGyroMapping::SaveToConfig() {
-    const std::string mappingCvarKey = "gControllers.GyroMappings." + GetGyroMappingId();
+    const std::string mappingCvarKey = CVAR_PREFIX_CONTROLLERS ".GyroMappings." + GetGyroMappingId();
 
     CVarSetString(StringHelper::Sprintf("%s.GyroMappingClass", mappingCvarKey.c_str()).c_str(), "WiiUGyroMapping");
     CVarSetInteger(StringHelper::Sprintf("%s.ShipDeviceIndex", mappingCvarKey.c_str()).c_str(),
@@ -74,7 +74,7 @@ void WiiUGyroMapping::SaveToConfig() {
 }
 
 void WiiUGyroMapping::EraseFromConfig() {
-    const std::string mappingCvarKey = "gControllers.GyroMappings." + GetGyroMappingId();
+    const std::string mappingCvarKey = CVAR_PREFIX_CONTROLLERS ".GyroMappings." + GetGyroMappingId();
 
     CVarClear(StringHelper::Sprintf("%s.GyroMappingClass", mappingCvarKey.c_str()).c_str());
     CVarClear(StringHelper::Sprintf("%s.ShipDeviceIndex", mappingCvarKey.c_str()).c_str());

@@ -69,7 +69,7 @@ std::string WiiURumbleMapping::GetRumbleMappingId() {
 }
 
 void WiiURumbleMapping::SaveToConfig() {
-    const std::string mappingCvarKey = "gControllers.RumbleMappings." + GetRumbleMappingId();
+    const std::string mappingCvarKey = CVAR_PREFIX_CONTROLLERS ".RumbleMappings." + GetRumbleMappingId();
     CVarSetString(StringHelper::Sprintf("%s.RumbleMappingClass", mappingCvarKey.c_str()).c_str(), "WiiURumbleMapping");
     CVarSetInteger(StringHelper::Sprintf("%s.ShipDeviceIndex", mappingCvarKey.c_str()).c_str(),
                    ControllerRumbleMapping::mShipDeviceIndex);
@@ -81,7 +81,7 @@ void WiiURumbleMapping::SaveToConfig() {
 }
 
 void WiiURumbleMapping::EraseFromConfig() {
-    const std::string mappingCvarKey = "gControllers.RumbleMappings." + GetRumbleMappingId();
+    const std::string mappingCvarKey = CVAR_PREFIX_CONTROLLERS ".RumbleMappings." + GetRumbleMappingId();
 
     CVarClear(StringHelper::Sprintf("%s.RumbleMappingClass", mappingCvarKey.c_str()).c_str());
     CVarClear(StringHelper::Sprintf("%s.ShipDeviceIndex", mappingCvarKey.c_str()).c_str());

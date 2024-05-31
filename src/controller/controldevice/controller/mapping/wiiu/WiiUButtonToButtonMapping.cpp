@@ -35,7 +35,7 @@ std::string WiiUButtonToButtonMapping::GetButtonMappingId() {
 }
 
 void WiiUButtonToButtonMapping::SaveToConfig() {
-    const std::string mappingCvarKey = "gControllers.ButtonMappings." + GetButtonMappingId();
+    const std::string mappingCvarKey = CVAR_PREFIX_CONTROLLERS ".ButtonMappings." + GetButtonMappingId();
     CVarSetString(StringHelper::Sprintf("%s.ButtonMappingClass", mappingCvarKey.c_str()).c_str(),
                   "WiiUButtonToButtonMapping");
     CVarSetInteger(StringHelper::Sprintf("%s.Bitmask", mappingCvarKey.c_str()).c_str(), mBitmask);
@@ -50,7 +50,7 @@ void WiiUButtonToButtonMapping::SaveToConfig() {
 }
 
 void WiiUButtonToButtonMapping::EraseFromConfig() {
-    const std::string mappingCvarKey = "gControllers.ButtonMappings." + GetButtonMappingId();
+    const std::string mappingCvarKey = CVAR_PREFIX_CONTROLLERS ".ButtonMappings." + GetButtonMappingId();
 
     CVarClear(StringHelper::Sprintf("%s.ButtonMappingClass", mappingCvarKey.c_str()).c_str());
     CVarClear(StringHelper::Sprintf("%s.Bitmask", mappingCvarKey.c_str()).c_str());
