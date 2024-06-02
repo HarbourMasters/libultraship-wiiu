@@ -365,3 +365,8 @@ extern/nlohmann-json/*_jsonConfig*
 *.xcworkspace
 *.xcsettings
 build*
+
+# Wii U Stuff
+latte-assembler
+*.gsh
+!build_shaders.sh

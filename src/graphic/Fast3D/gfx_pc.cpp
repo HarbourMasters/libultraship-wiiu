@@ -3396,6 +3396,12 @@ bool gfx_read_fb_handler_custom(F3DGfx** cmd0) {
         }
     }
 #endif
+#ifdef __WIIU__
+    // The Wii U GPU is LE and always needs a byteswap
+    for (size_t i = 0; i < width * height; i++) {
+        rgba16Buffer[i] = BSWAP16(rgba16Buffer[i]);
+    }
+#endif
 
     return false;
 }
