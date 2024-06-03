@@ -12,7 +12,6 @@
 #include <malloc.h>
 
 #include <map>
-#include <vector>
 
 #ifndef _LANGUAGE_C
 #define _LANGUAGE_C
@@ -78,7 +77,8 @@ struct Framebuffer {
     ImGui_ImplGX2_Texture imtex;
 };
 
-static std::vector<Framebuffer> framebuffers;
+static std::array<Framebuffer, 100> framebuffers;
+static std::size_t used_framebuffers;
 static std::size_t current_framebuffer;
 static GX2DepthBuffer depthReadBuffer;
 
@@ -382,13 +382,13 @@ static void gfx_gx2_set_zmode_decal(bool zmode_decal) {
         switch (CVarGetInteger("gZFightingMode", 0)) {
             // scaled z-fighting (N64 mode like)
             case 1:
-                if (current_framebuffer < framebuffers.size()) {
+                if (current_framebuffer < used_framebuffers) {
                     SSDB = -1.0f * (float)framebuffers[current_framebuffer].color_buffer.surface.height / n64modeFactor;
                 }
                 break;
             // no vanishing paths
             case 2:
-                if (current_framebuffer < framebuffers.size()) {
+                if (current_framebuffer < used_framebuffers) {
                     SSDB = -1.0f * (float)framebuffers[current_framebuffer].color_buffer.surface.height / noVanishFactor;
                 }
                 break;
@@ -464,7 +464,7 @@ static void gfx_gx2_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size_t b
 
 static void gfx_gx2_init(void) {
     // Init the default framebuffer
-    framebuffers.resize(1);
+    used_framebuffers = 1;
     Framebuffer& main_framebuffer = framebuffers[0];
 
     gfx_gx2_init_framebuffer(&main_framebuffer, WIIU_DEFAULT_FB_WIDTH, WIIU_DEFAULT_FB_HEIGHT);
@@ -602,8 +602,10 @@ static void gfx_gx2_finish_render(void) {
 }
 
 static int gfx_gx2_create_framebuffer(void) {
-    size_t i = framebuffers.size();
-    framebuffers.resize(i + 1);
+    assert(used_framebuffers < framebuffers.size());
+
+    std::size_t i = used_framebuffers;
+    used_framebuffers++;
 
     Framebuffer& buffer = framebuffers[i];
 
@@ -731,7 +733,7 @@ void gfx_gx2_clear_framebuffer(void) {
 
 void gfx_gx2_resolve_msaa_color_buffer(int fb_id_target, int fb_id_source) {
     Framebuffer& src_buffer = framebuffers[fb_id_source];
-    Framebuffer& target_buffer = framebuffers[fb_id_source];
+    Framebuffer& target_buffer = framebuffers[fb_id_target];
 
     if (src_buffer.color_buffer.surface.aa == GX2_AA_MODE1X) {
         GX2CopySurface(&src_buffer.color_buffer.surface, src_buffer.color_buffer.viewMip,
@@ -760,7 +762,7 @@ void gfx_gx2_select_texture_fb(int fb) {
 
 void gfx_gx2_copy_framebuffer(int fb_dst_id, int fb_src_id, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0,
                               int dstY0, int dstX1, int dstY1) {
-    if (fb_dst_id >= (int)framebuffers.size() || fb_src_id >= (int)framebuffers.size()) {
+    if (fb_dst_id >= used_framebuffers || fb_src_id >= used_framebuffers) {
         return;
     }
 
@@ -782,7 +784,7 @@ void gfx_gx2_copy_framebuffer(int fb_dst_id, int fb_src_id, int srcX0, int srcY0
 }
 
 void gfx_gx2_read_framebuffer_to_cpu(int fb_id, uint32_t width, uint32_t height, uint16_t* rgba16_buf) {
-    if (fb_id >= (int)framebuffers.size()) {
+    if (fb_id >= used_framebuffers) {
         return;
     }
 
@@ -860,7 +862,7 @@ gfx_gx2_get_pixel_depth(int fb_id, const std::set<std::pair<float, float>>& coor
         // read the pixels from the depthReadBuffer
         for (size_t i = 0; i < numRects; ++i) {
             uint32_t tmp = __builtin_bswap32(*((uint32_t*)depthReadBuffer.surface.image + i));
-            float val = *(float*)&tmp;
+            float val = std::bit_cast<float>(tmp);
 
             const auto& c = *std::next(coordinates.begin(), num_coordinates + i);
             res.emplace(c, val * 65532.0f);
