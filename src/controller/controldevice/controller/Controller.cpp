@@ -176,7 +176,7 @@ void Controller::ReadToPad(OSContPad* pad) {
 }
 
 #ifndef __WIIU__
-bool Controller::ProcessKeyboardEvent(Ship::KbEventType eventType, Ship::KbScancode scancode) {
+bool Controller::ProcessKeyboardEvent(KbEventType eventType, KbScancode scancode) {
     bool result = false;
     for (auto [bitmask, button] : GetAllButtons()) {
         result = button->ProcessKeyboardEvent(eventType, scancode) || result;

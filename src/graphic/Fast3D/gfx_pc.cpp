@@ -2622,8 +2622,6 @@ static inline void* seg_addr(uintptr_t w1) {
 #define C0(pos, width) ((cmd->words.w0 >> (pos)) & ((1U << width) - 1))
 #define C1(pos, width) ((cmd->words.w1 >> (pos)) & ((1U << width) - 1))
 
-uintptr_t clearMtx;
-
 void GfxExecStack::start(F3DGfx* dlist) {
     while (!cmd_stack.empty())
         cmd_stack.pop();
@@ -2744,34 +2742,13 @@ bool gfx_mtx_handler_f3dex2(F3DGfx** cmd0) {
     F3DGfx* cmd = *cmd0;
     uintptr_t mtxAddr = cmd->words.w1;
 
-    if (mtxAddr == SEG_ADDR(0, 0x12DB20) || // GC MQ D
-        mtxAddr == SEG_ADDR(0, 0x12DB40) || // GC NMQ D
-        mtxAddr == SEG_ADDR(0, 0xFBC20) ||  // GC PAL
-        mtxAddr == SEG_ADDR(0, 0xFBC01) ||  // GC MQ PAL
-        mtxAddr == SEG_ADDR(0, 0xFCD00) ||  // PAL1.0
-        mtxAddr == SEG_ADDR(0, 0xFCD40)     // PAL1.1
-    ) {
-        mtxAddr = clearMtx;
-    }
-
     gfx_sp_matrix(C0(0, 8) ^ F3DEX2_G_MTX_PUSH, (const int32_t*)seg_addr(mtxAddr));
-
     return false;
 }
 // Seems to be the same for all other non F3DEX2 microcodes...
 bool gfx_mtx_handler_f3d(F3DGfx** cmd0) {
     F3DGfx* cmd = *cmd0;
     uintptr_t mtxAddr = cmd->words.w1;
-
-    if (mtxAddr == SEG_ADDR(0, 0x12DB20) || // GC MQ D
-        mtxAddr == SEG_ADDR(0, 0x12DB40) || // GC NMQ D
-        mtxAddr == SEG_ADDR(0, 0xFBC20) ||  // GC PAL
-        mtxAddr == SEG_ADDR(0, 0xFBC01) ||  // GC MQ PAL
-        mtxAddr == SEG_ADDR(0, 0xFCD00) ||  // PAL1.0
-        mtxAddr == SEG_ADDR(0, 0xFCD40)     // PAL1.1
-    ) {
-        mtxAddr = clearMtx;
-    }
 
     gfx_sp_matrix(C0(16, 8), (const int32_t*)seg_addr(cmd->words.w1));
     return false;
@@ -3150,10 +3127,8 @@ bool gfx_quad_handler_f3dex2(F3DGfx** cmd0) {
 
 bool gfx_quad_handler_f3dex(F3DGfx** cmd0) {
     F3DGfx* cmd = *cmd0;
-    gfx_sp_tri1(C0(16, 8) / 2, C0(8, 8) / 2, C0(0, 8) / 2, false);
-    gfx_sp_tri1(C0(8, 8) / 2, C0(0, 8) / 2, C0(24, 0) / 2, false);
-    gfx_sp_tri1(C1(0, 8) / 2, C1(24, 8) / 2, C1(16, 8) / 2, false);
-    gfx_sp_tri1(C1(24, 8) / 2, C1(16, 8) / 2, C1(8, 8) / 2, false);
+    gfx_sp_tri1(C1(16, 8) / 2, C1(8, 8) / 2, C1(0, 8) / 2, false);
+    gfx_sp_tri1(C1(16, 8) / 2, C1(0, 8) / 2, C1(24, 8) / 2, false);
     return false;
 }
 
@@ -3215,6 +3190,11 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
         if (gfx_check_image_signature(imgData) == 1) {
             std::shared_ptr<LUS::Texture> tex = std::static_pointer_cast<LUS::Texture>(
                 Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(imgData));
+
+            if (tex == nullptr) {
+                (*cmd0)++;
+                return false;
+            }
 
             i = (uintptr_t) reinterpret_cast<char*>(tex->ImageData);
             texFlags = tex->Flags;

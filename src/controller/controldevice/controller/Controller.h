@@ -49,7 +49,7 @@ class Controller : public ControlDevice {
     std::vector<std::shared_ptr<ControllerMapping>> GetAllMappings();
 
 #ifndef __WIIU__
-    bool ProcessKeyboardEvent(Ship::KbEventType eventType, Ship::KbScancode scancode);
+    bool ProcessKeyboardEvent(KbEventType eventType, KbScancode scancode);
 #endif
 
     bool HasMappingsForShipDeviceIndex(ShipDeviceIndex lusIndex);
