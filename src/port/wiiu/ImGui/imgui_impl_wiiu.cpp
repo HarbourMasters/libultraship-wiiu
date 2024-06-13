@@ -151,7 +151,8 @@ static void ImGui_ImplWiiU_UpdateKeyboardInput(const ImGui_ImplWiiU_ControllerIn
         // close keyboard
         nn::swkbd::DisappearInputForm();
 
-        ImGui::ClearActiveID();
+        // Not sure why but this prevents the keyboard from closing
+        // ImGui::ClearActiveID();
     }
 
     if (nn::swkbd::IsDecideCancelButton(NULL))
