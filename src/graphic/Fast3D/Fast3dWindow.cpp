@@ -31,7 +31,11 @@ Fast3dWindow::Fast3dWindow(std::vector<std::shared_ptr<Ship::GuiWindow>> guiWind
         AddAvailableWindowBackend(Ship::WindowBackend::FAST3D_SDL_METAL);
     }
 #endif
+#ifdef __WIIU__
+    AddAvailableWindowBackend(Ship::WindowBackend::FAST3D_WIIU_GX2);
+#else
     AddAvailableWindowBackend(Ship::WindowBackend::FAST3D_SDL_OPENGL);
+#endif
 }
 
 Fast3dWindow::~Fast3dWindow() {
