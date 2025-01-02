@@ -14,7 +14,6 @@ int32_t osContInit(OSMesgQueue* mq, uint8_t* controllerBits, OSContStatus* statu
     *controllerBits = 0;
     status->status |= 1;
 
-#ifndef __WIIU__
     if (SDL_Init(SDL_INIT_GAMECONTROLLER) != 0) {
         SPDLOG_ERROR("Failed to initialize SDL game controllers ({})", SDL_GetError());
         exit(EXIT_FAILURE);
@@ -27,7 +26,6 @@ int32_t osContInit(OSMesgQueue* mq, uint8_t* controllerBits, OSContStatus* statu
     } else {
         SPDLOG_ERROR("Failed add SDL game controller mappings from \"{}\" ({})", controllerDb, SDL_GetError());
     }
-#endif
 
     Ship::Context::GetInstance()->GetControlDeck()->Init(controllerBits);
 

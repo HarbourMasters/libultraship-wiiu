@@ -5,7 +5,6 @@
 #include <malloc.h>
 
 #include <coreinit/time.h>
-#include <coreinit/thread.h>
 #include <coreinit/foreground.h>
 #include <coreinit/memory.h>
 #include <coreinit/memheap.h>
@@ -380,7 +379,7 @@ static void gfx_wiiu_handle_events(void) {
 
     Ship::WindowEvent event_impl;
     event_impl.Gx2.Input = &input;
-    Ship::Context::GetInstance()->GetWindow()->GetGui()->Update(event_impl);
+    Ship::Context::GetInstance()->GetWindow()->GetGui()->HandleWindowEvents(event_impl);
 }
 
 static bool gfx_wiiu_start_frame(void) {

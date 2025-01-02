@@ -30,17 +30,14 @@ void ControlDeck::Init(uint8_t* controllerBits) {
         }
     }
 
-#ifndef __WIIU__
     // if we don't have a config for controller 1, set default keyboard bindings
     if (!mPorts[0]->GetConnectedController()->HasConfig()) {
         mPorts[0]->GetConnectedController()->AddDefaultMappings(ShipDeviceIndex::Keyboard);
     }
-#endif
 
     Context::GetInstance()->GetWindow()->GetGui()->GetGuiWindow("Controller Reordering")->Show();
 }
 
-#ifndef __WIIU__
 bool ControlDeck::ProcessKeyboardEvent(KbEventType eventType, KbScancode scancode) {
     bool result = false;
     for (auto port : mPorts) {
@@ -53,7 +50,6 @@ bool ControlDeck::ProcessKeyboardEvent(KbEventType eventType, KbScancode scancod
 
     return result;
 }
-#endif
 
 bool ControlDeck::AllGameInputBlocked() {
     return !mGameInputBlockers.empty();

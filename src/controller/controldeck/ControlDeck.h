@@ -23,9 +23,7 @@ class ControlDeck {
     bool KeyboardGameInputBlocked();
     void SetSinglePlayerMappingMode(bool singlePlayer);
     bool IsSinglePlayerMappingMode();
-#ifndef __WIIU__
     bool ProcessKeyboardEvent(KbEventType eventType, KbScancode scancode);
-#endif
     std::shared_ptr<ShipDeviceIndexMappingManager> GetDeviceIndexMappingManager();
 
   protected:

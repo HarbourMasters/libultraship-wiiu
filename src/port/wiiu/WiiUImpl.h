@@ -21,7 +21,5 @@ VPADStatus* GetVPADStatus(VPADReadError* error);
 
 KPADStatus* GetKPADStatus(WPADChan chan, KPADError* error);
 
-void SetControllersInitialized();
-
 }; // namespace WiiU
 }; // namespace Ship

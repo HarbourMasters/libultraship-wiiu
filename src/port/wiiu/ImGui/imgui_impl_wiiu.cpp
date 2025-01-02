@@ -168,7 +168,9 @@ static void ImGui_ImplWiiU_UpdateTouchInput(const ImGui_ImplWiiU_ControllerInput
     ImGuiIO& io = ImGui::GetIO();
 
     VPADTouchData touch;
-    VPADGetTPCalibratedPoint(VPAD_CHAN_0, &touch, &input->vpad->tpNormal);
+    // Our SDL->VPAD code already gets calibrated data
+    // VPADGetTPCalibratedPoint(VPAD_CHAN_0, &touch, &input->vpad->tpNormal);
+    memcpy(&touch, &input->vpad->tpNormal, sizeof(VPADTouchData));
 
     if (touch.touched)
     {

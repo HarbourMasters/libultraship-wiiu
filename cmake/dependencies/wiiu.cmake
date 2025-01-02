@@ -16,7 +16,7 @@ if (NOT ${spdlog_FOUND})
     FetchContent_Declare(
         spdlog
         GIT_REPOSITORY https://github.com/gabime/spdlog.git
-        GIT_TAG v1.13.0
+        GIT_TAG v1.15.0
         OVERRIDE_FIND_PACKAGE
         PATCH_COMMAND patch -p1 -i "${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/patches/spdlog-wiiu.patch"
         # don't try to apply the patch multiple times https://stackoverflow.com/a/73725257

@@ -38,15 +38,6 @@ target_sources(libultraship PRIVATE ${Source_Files__Audio})
 
 file(GLOB_RECURSE Source_Files__Controller RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "controller/*.h" "controller/*.cpp")
 
-if (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
-    list(FILTER Source_Files__Controller EXCLUDE REGEX "controller/controldevice/controller/mapping/keyboard/*")
-    list(FILTER Source_Files__Controller EXCLUDE REGEX "controller/controldevice/controller/mapping/sdl/*")
-    list(FILTER Source_Files__Controller EXCLUDE REGEX "controller/deviceindex/ShipDeviceIndexToSDLDeviceIndexMapping.*")
-else()
-    list(FILTER Source_Files__Controller EXCLUDE REGEX "controller/controldevice/controller/mapping/wiiu/*")
-    list(FILTER Source_Files__Controller EXCLUDE REGEX "controller/deviceindex/ShipDeviceIndexToWiiUDeviceIndexMapping.*")
-endif()
-
 source_group("controller" FILES ${Source_Files__Controller})
 target_sources(libultraship PRIVATE ${Source_Files__Controller})
 

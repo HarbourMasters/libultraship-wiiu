@@ -3,10 +3,7 @@
 #include "Gui.h"
 #include "utils/StringHelper.h"
 #include "public/bridge/consolevariablebridge.h"
-
-#ifndef __WIIU__
 #include "controller/controldevice/controller/mapping/sdl/SDLAxisDirectionToButtonMapping.h"
-#endif
 
 #define SCALE_IMGUI_SIZE(value) ((value / 13.0f) * ImGui::GetFontSize())
 
@@ -300,7 +297,6 @@ void InputEditorWindow::DrawButtonLineEditMappingButton(uint8_t port, CONTROLLER
     ImGui::PopStyleVar();
     ImGui::SameLine(0, 0);
 
-#ifndef __WIIU__
     auto sdlAxisDirectionToButtonMapping = std::dynamic_pointer_cast<SDLAxisDirectionToButtonMapping>(mapping);
     auto indexMapping = Context::GetInstance()
                             ->GetControlDeck()
@@ -420,7 +416,6 @@ void InputEditorWindow::DrawButtonLineEditMappingButton(uint8_t port, CONTROLLER
         ImGui::PopStyleVar();
         ImGui::SameLine(0, 0);
     }
-#endif
 
     ImGui::PushStyleColor(ImGuiCol_Button, buttonColor);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonHoveredColor);
@@ -1385,59 +1380,6 @@ void InputEditorWindow::DrawLEDDeviceIcons(uint8_t portIndex) {
     }
 }
 
-#ifdef __WIIU__
-void InputEditorWindow::DrawDeviceVisibilityButtons() {
-    std::map<ShipDeviceIndex, std::pair<std::string, int32_t>> indexMappings;
-    for (auto [lusIndex, mapping] : Context::GetInstance()
-                                        ->GetControlDeck()
-                                        ->GetDeviceIndexMappingManager()
-                                        ->GetAllDeviceIndexMappingsFromConfig()) {
-        auto wiiuIndexMapping = std::static_pointer_cast<ShipDeviceIndexToWiiUDeviceIndexMapping>(mapping);
-        if (wiiuIndexMapping == nullptr) {
-            continue;
-        }
-
-        indexMappings[lusIndex] = { wiiuIndexMapping->GetWiiUControllerName(), -1 };
-    }
-
-    for (auto [lusIndex, mapping] :
-            Context::GetInstance()->GetControlDeck()->GetDeviceIndexMappingManager()->GetAllDeviceIndexMappings()) {
-        auto wiiuIndexMapping = std::static_pointer_cast<ShipDeviceIndexToWiiUDeviceIndexMapping>(mapping);
-        if (wiiuIndexMapping == nullptr) {
-            continue;
-        }
-
-        indexMappings[lusIndex] = { wiiuIndexMapping->GetWiiUControllerName(),
-                                    wiiuIndexMapping->IsWiiUGamepad() ? INT32_MAX
-                                                                        : wiiuIndexMapping->GetDeviceChannel() };
-    }
-
-    for (auto [lusIndex, info] : indexMappings) {
-        auto [name, wiiuChannel] = info;
-        bool connected = wiiuChannel != -1;
-        bool isGamepad = wiiuChannel == INT32_MAX;
-
-        auto buttonColor = ImGui::GetStyleColorVec4(ImGuiCol_Button);
-        auto buttonHoveredColor = ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered);
-        GetButtonColorsForShipDeviceIndex(lusIndex, buttonColor, buttonHoveredColor);
-
-        ImGui::PushStyleColor(ImGuiCol_Button, buttonColor);
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonHoveredColor);
-        bool visible = mDeviceIndexVisiblity[lusIndex];
-        if (ImGui::Button(
-                StringHelper::Sprintf("%s %s %s %s", visible ? ICON_FA_EYE : ICON_FA_EYE_SLASH,
-                                      connected ? ICON_FA_GAMEPAD : ICON_FA_CHAIN_BROKEN, name.c_str(),
-                                      !connected ? "(Disconnected)"
-                                    : isGamepad ? ""
-                                                : StringHelper::Sprintf("(%d)", wiiuChannel).c_str())
-                    .c_str())) {
-            mDeviceIndexVisiblity[lusIndex] = !visible;
-        }
-        ImGui::PopStyleColor();
-        ImGui::PopStyleColor();
-    }
-}
-#else
 void InputEditorWindow::DrawDeviceVisibilityButtons() {
     std::map<ShipDeviceIndex, std::pair<std::string, int32_t>> indexMappings;
     for (auto [lusIndex, mapping] : Context::GetInstance()
@@ -1498,7 +1440,6 @@ void InputEditorWindow::DrawDeviceVisibilityButtons() {
         ImGui::PopStyleColor();
     }
 }
-#endif
 
 void InputEditorWindow::DrawClearAllButton(uint8_t portIndex) {
     if (ImGui::Button("Clear All", ImGui::CalcTextSize("Clear All") * 2)) {
@@ -1608,76 +1549,6 @@ void InputEditorWindow::DrawPortTab(uint8_t portIndex) {
     }
 }
 
-#ifdef __WIIU__
-void InputEditorWindow::DrawSetDefaultsButton(uint8_t portIndex) {
-    ImGui::SameLine();
-    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(1.0f, 0.5f));
-    auto popupId = StringHelper::Sprintf("setDefaultsPopup##%d", portIndex);
-    if (ImGui::Button(StringHelper::Sprintf("Set defaults...##%d", portIndex).c_str())) {
-        ImGui::OpenPopup(popupId.c_str());
-    }
-    ImGui::PopStyleVar();
-
-    if (ImGui::BeginPopup(popupId.c_str())) {
-        std::map<ShipDeviceIndex, std::pair<std::string, int32_t>> indexMappings;
-        for (auto [lusIndex, mapping] :
-             Context::GetInstance()->GetControlDeck()->GetDeviceIndexMappingManager()->GetAllDeviceIndexMappings()) {
-            auto wiiuIndexMapping = std::static_pointer_cast<ShipDeviceIndexToWiiUDeviceIndexMapping>(mapping);
-            if (wiiuIndexMapping == nullptr) {
-                continue;
-            }
-
-            indexMappings[lusIndex] = { wiiuIndexMapping->GetWiiUControllerName(),
-                                        wiiuIndexMapping->IsWiiUGamepad() ? INT32_MAX
-                                                                          : wiiuIndexMapping->GetDeviceChannel() };
-        }
-
-        bool shouldClose = false;
-        for (auto [lusIndex, info] : indexMappings) {
-            auto [name, wiiuChannel] = info;
-            bool isGamepad = wiiuChannel == INT32_MAX;
-
-            auto buttonColor = ImGui::GetStyleColorVec4(ImGuiCol_Button);
-            auto buttonHoveredColor = ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered);
-            GetButtonColorsForShipDeviceIndex(lusIndex, buttonColor, buttonHoveredColor);
-            ImGui::PushStyleColor(ImGuiCol_Button, buttonColor);
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonHoveredColor);
-
-            auto fancyName = StringHelper::Sprintf(
-                "%s%s", name.c_str(), isGamepad ? "" : StringHelper::Sprintf(" (%d)", wiiuChannel).c_str());
-            if (ImGui::Button(StringHelper::Sprintf("%s %s", ICON_FA_GAMEPAD, fancyName.c_str()).c_str())) {
-                ImGui::OpenPopup(StringHelper::Sprintf("Set Defaults for %s", name.c_str()).c_str());
-            }
-            ImGui::PopStyleColor();
-            ImGui::PopStyleColor();
-            if (ImGui::BeginPopupModal(StringHelper::Sprintf("Set Defaults for %s", name.c_str()).c_str(), NULL,
-                                       ImGuiWindowFlags_AlwaysAutoResize)) {
-                ImGui::Text("This will clear all existing mappings for\n%s on port %d.\n\nContinue?", fancyName.c_str(),
-                            portIndex + 1);
-                if (ImGui::Button("Cancel")) {
-                    shouldClose = true;
-                    ImGui::CloseCurrentPopup();
-                }
-                if (ImGui::Button("Set defaults")) {
-                    Context::GetInstance()->GetControlDeck()->GetControllerByPort(portIndex)->ClearAllMappingsForDevice(
-                        lusIndex);
-                    Context::GetInstance()->GetControlDeck()->GetControllerByPort(portIndex)->AddDefaultMappings(
-                        lusIndex);
-                    shouldClose = true;
-                    ImGui::CloseCurrentPopup();
-                }
-                ImGui::EndPopup();
-            }
-        }
-
-        if (ImGui::Button("Cancel") || shouldClose) {
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
-    }
-}
-#else
 void InputEditorWindow::DrawSetDefaultsButton(uint8_t portIndex) {
     ImGui::SameLine();
     auto popupId = StringHelper::Sprintf("setDefaultsPopup##%d", portIndex);
@@ -1764,7 +1635,6 @@ void InputEditorWindow::DrawSetDefaultsButton(uint8_t portIndex) {
         ImGui::EndPopup();
     }
 }
-#endif
 
 void InputEditorWindow::DrawElement() {
     ImGui::BeginTabBar("##ControllerConfigPortTabs");

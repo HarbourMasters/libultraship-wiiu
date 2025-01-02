@@ -126,7 +126,6 @@ void Controller::ReloadAllMappingsFromConfig() {
     GetLED()->ReloadAllMappingsFromConfig();
 }
 
-#ifndef __WIIU__
 bool Controller::ProcessKeyboardEvent(KbEventType eventType, KbScancode scancode) {
     bool result = false;
     for (auto [bitmask, button] : GetAllButtons()) {
@@ -136,7 +135,6 @@ bool Controller::ProcessKeyboardEvent(KbEventType eventType, KbScancode scancode
     result = GetRightStick()->ProcessKeyboardEvent(eventType, scancode) || result;
     return result;
 }
-#endif
 
 bool Controller::HasMappingsForShipDeviceIndex(ShipDeviceIndex lusIndex) {
     for (auto [bitmask, button] : GetAllButtons()) {

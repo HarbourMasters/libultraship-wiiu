@@ -51,9 +51,7 @@ class ControllerStick {
     uint8_t GetNotchSnapAngle();
     bool NotchSnapAngleIsDefault();
 
-#ifndef __WIIU__
     bool ProcessKeyboardEvent(KbEventType eventType, KbScancode scancode);
-#endif
 
     bool HasMappingsForShipDeviceIndex(ShipDeviceIndex lusIndex);
     StickIndex GetStickIndex();
