@@ -721,12 +721,17 @@ void gfx_gx2_start_draw_to_framebuffer(int fb, float noise_scale) {
     current_framebuffer = fb;
 }
 
-void gfx_gx2_clear_framebuffer(void) {
+void gfx_gx2_clear_framebuffer(bool color, bool depth) {
     Framebuffer& buffer = framebuffers[current_framebuffer];
 
-    GX2ClearColor(&buffer.color_buffer, 0.0f, 0.0f, 0.0f, 1.0f);
-    GX2ClearDepthStencilEx(&buffer.depth_buffer, buffer.depth_buffer.depthClear, buffer.depth_buffer.stencilClear,
-                           GX2_CLEAR_FLAGS_BOTH);
+    if (color) {
+        GX2ClearColor(&buffer.color_buffer, 0.0f, 0.0f, 0.0f, 1.0f);
+    }
+
+    if (depth) {
+        GX2ClearDepthStencilEx(&buffer.depth_buffer, buffer.depth_buffer.depthClear, buffer.depth_buffer.stencilClear,
+                            GX2_CLEAR_FLAGS_BOTH);
+    }
 
     gfx_wiiu_set_context_state();
 }
@@ -891,6 +896,9 @@ ImGui_ImplGX2_Texture* gfx_gx2_texture_for_imgui(uint32_t texture_id) {
     return &tex->imtex;
 }
 
+void gfx_gx2_enable_srgb_mode() {
+}
+
 struct GfxRenderingAPI gfx_gx2_api = { gfx_gx2_get_name,
                                        gfx_gx2_get_max_texture_size,
                                        gfx_gx2_get_clip_parameters,
@@ -926,6 +934,7 @@ struct GfxRenderingAPI gfx_gx2_api = { gfx_gx2_get_name,
                                        gfx_gx2_select_texture_fb,
                                        gfx_gx2_delete_texture,
                                        gfx_gx2_set_texture_filter,
-                                       gfx_gx2_get_texture_filter };
+                                       gfx_gx2_get_texture_filter,
+                                       gfx_gx2_enable_srgb_mode };
 
 #endif

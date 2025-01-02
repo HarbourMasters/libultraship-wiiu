@@ -344,7 +344,36 @@ static void gfx_wiiu_get_active_window_refresh_rate(uint32_t* refresh_rate) {
     *refresh_rate = 60;
 }
 
-static void gfx_wiiu_show_cursor(bool hide) {
+static void gfx_wiiu_set_cursor_visibility(bool hide) {
+}
+
+static void gfx_wiiu_set_mouse_pos(int32_t x, int32_t y) {
+}
+
+static void gfx_wiiu_get_mouse_pos(int32_t* x, int32_t* y) {
+    *x = 0;
+    *y = 0;
+}
+
+static void gfx_wiiu_get_mouse_delta(int32_t* x, int32_t* y) {
+    *x = 0;
+    *y = 0;
+}
+
+static void gfx_wiiu_get_mouse_wheel(float* x, float* y) {
+    *x = 0;
+    *y = 0;
+}
+
+static bool gfx_wiiu_get_mouse_state(uint32_t btn) {
+    return false;
+}
+
+static void gfx_wiiu_set_mouse_capture(bool capture) {
+}
+
+static bool gfx_wiiu_is_mouse_captured() {
+    return false;
 }
 
 static void gfx_wiiu_set_keyboard_callbacks(bool (*on_key_down)(int scancode), bool (*on_key_up)(int scancode),
@@ -473,7 +502,14 @@ struct GfxWindowManagerAPI gfx_wiiu = {
     gfx_wiiu_set_fullscreen_changed_callback,
     gfx_wiiu_set_fullscreen,
     gfx_wiiu_get_active_window_refresh_rate,
-    gfx_wiiu_show_cursor,
+    gfx_wiiu_set_cursor_visibility,
+    gfx_wiiu_set_mouse_pos,
+    gfx_wiiu_get_mouse_pos,
+    gfx_wiiu_get_mouse_delta,
+    gfx_wiiu_get_mouse_wheel,
+    gfx_wiiu_get_mouse_state,
+    gfx_wiiu_set_mouse_capture,
+    gfx_wiiu_is_mouse_captured,
     gfx_wiiu_get_dimensions,
     gfx_wiiu_handle_events,
     gfx_wiiu_start_frame,
