@@ -37,12 +37,15 @@
 #endif
 
 #define GFX_BACKEND_NAME "SDL"
+#define _100NANOSECONDS_IN_SECOND 10000000
 
 static SDL_Window* wnd;
 static SDL_GLContext ctx;
 static SDL_Renderer* renderer;
 static int sdl_to_lus_table[512];
 static bool vsync_enabled = true;
+static float mouse_wheel_x = 0.0f;
+static float mouse_wheel_y = 0.0f;
 // OTRTODO: These are redundant. Info can be queried from SDL.
 static int window_width = DESIRED_SCREEN_WIDTH;
 static int window_height = DESIRED_SCREEN_HEIGHT;
@@ -51,7 +54,7 @@ static bool is_running = true;
 static void (*on_fullscreen_changed_callback)(bool is_now_fullscreen);
 static bool (*on_key_down_callback)(int scancode);
 static bool (*on_key_up_callback)(int scancode);
-static void (*on_all_keys_up_callback)(void);
+static void (*on_all_keys_up_callback)();
 
 #ifdef _WIN32
 LONG_PTR SDL_WndProc;
@@ -281,6 +284,10 @@ static int target_fps = 60;
 #define FRAME_INTERVAL_US_NUMERATOR 1000000
 #define FRAME_INTERVAL_US_DENOMINATOR (target_fps)
 
+static void gfx_sdl_close(void) {
+    is_running = false;
+}
+
 #ifdef _WIN32
 static LRESULT CALLBACK gfx_sdl_wnd_proc(HWND h_wnd, UINT message, WPARAM w_param, LPARAM l_param) {
     switch (message) {
@@ -288,6 +295,12 @@ static LRESULT CALLBACK gfx_sdl_wnd_proc(HWND h_wnd, UINT message, WPARAM w_para
             // Something is wrong with SDLs original implementation of WM_GETDPISCALEDSIZE, so pass it to the default
             // system window procedure instead.
             return DefWindowProc(h_wnd, message, w_param, l_param);
+        case WM_ENDSESSION:
+            // Apparently SDL2 does not handle this
+            if (w_param == TRUE) {
+                gfx_sdl_close();
+            }
+            break;
         default:
             // Pass anything else to SDLs original window procedure.
             return CallWindowProc((WNDPROC)SDL_WndProc, h_wnd, message, w_param, l_param);
@@ -300,6 +313,11 @@ static void gfx_sdl_init(const char* game_name, const char* gfx_api_name, bool s
                          uint32_t height, int32_t posX, int32_t posY) {
     window_width = width;
     window_height = height;
+
+#if SDL_VERSION_ATLEAST(2, 24, 0)
+    /* fix DPI scaling issues on Windows */
+    SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
+#endif
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -412,10 +430,6 @@ static void gfx_sdl_init(const char* game_name, const char* gfx_api_name, bool s
     }
 }
 
-static void gfx_sdl_close(void) {
-    is_running = false;
-}
-
 static void gfx_sdl_set_fullscreen_changed_callback(void (*on_fullscreen_changed)(bool is_now_fullscreen)) {
     on_fullscreen_changed_callback = on_fullscreen_changed;
 }
@@ -432,8 +446,39 @@ static void gfx_sdl_set_cursor_visibility(bool visible) {
     }
 }
 
+static void gfx_sdl_set_mouse_pos(int32_t x, int32_t y) {
+    SDL_WarpMouseInWindow(wnd, x, y);
+}
+
+static void gfx_sdl_get_mouse_pos(int32_t* x, int32_t* y) {
+    SDL_GetMouseState(x, y);
+}
+
+static void gfx_sdl_get_mouse_delta(int32_t* x, int32_t* y) {
+    SDL_GetRelativeMouseState(x, y);
+}
+
+static void gfx_sdl_get_mouse_wheel(float* x, float* y) {
+    *x = mouse_wheel_x;
+    *y = mouse_wheel_y;
+    mouse_wheel_x = 0.0f;
+    mouse_wheel_y = 0.0f;
+}
+
+static bool gfx_sdl_get_mouse_state(uint32_t btn) {
+    return SDL_GetMouseState(NULL, NULL) & (1 << btn);
+}
+
+static void gfx_sdl_set_mouse_capture(bool capture) {
+    SDL_SetRelativeMouseMode(static_cast<SDL_bool>(capture));
+}
+
+static bool gfx_sdl_is_mouse_captured() {
+    return (SDL_GetRelativeMouseMode() == SDL_TRUE);
+}
+
 static void gfx_sdl_set_keyboard_callbacks(bool (*on_key_down)(int scancode), bool (*on_key_up)(int scancode),
-                                           void (*on_all_keys_up)(void)) {
+                                           void (*on_all_keys_up)()) {
     on_key_down_callback = on_key_down;
     on_key_up_callback = on_key_up;
     on_all_keys_up_callback = on_all_keys_up;
@@ -478,7 +523,7 @@ static void gfx_sdl_onkeyup(int scancode) {
 static void gfx_sdl_handle_single_event(SDL_Event& event) {
     Ship::WindowEvent event_impl;
     event_impl.Sdl = { &event };
-    Ship::Context::GetInstance()->GetWindow()->GetGui()->Update(event_impl);
+    Ship::Context::GetInstance()->GetWindow()->GetGui()->HandleWindowEvents(event_impl);
     switch (event.type) {
 #ifndef TARGET_WEB
         // Scancodes are broken in Emscripten SDL2: https://bugzilla.libsdl.org/show_bug.cgi?id=3259
@@ -488,14 +533,23 @@ static void gfx_sdl_handle_single_event(SDL_Event& event) {
         case SDL_KEYUP:
             gfx_sdl_onkeyup(event.key.keysym.scancode);
             break;
+        case SDL_MOUSEWHEEL:
+            mouse_wheel_x = event.wheel.x;
+            mouse_wheel_y = event.wheel.y;
+            break;
 #endif
         case SDL_WINDOWEVENT:
-            if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-                SDL_GL_GetDrawableSize(wnd, &window_width, &window_height);
-            } else if (event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(wnd)) {
-                // We listen specifically for main window close because closing main window
-                // on macOS does not trigger SDL_Quit.
-                is_running = false;
+            switch (event.window.event) {
+                case SDL_WINDOWEVENT_SIZE_CHANGED:
+                    SDL_GL_GetDrawableSize(wnd, &window_width, &window_height);
+                    break;
+                case SDL_WINDOWEVENT_CLOSE:
+                    if (event.window.windowID == SDL_GetWindowID(wnd)) {
+                        // We listen specifically for main window close because closing main window
+                        // on macOS does not trigger SDL_Quit.
+                        gfx_sdl_close();
+                    }
+                    break;
             }
             break;
         case SDL_DROPFILE:
@@ -504,12 +558,12 @@ static void gfx_sdl_handle_single_event(SDL_Event& event) {
             Ship::Context::GetInstance()->GetConsoleVariables()->Save();
             break;
         case SDL_QUIT:
-            is_running = false;
+            gfx_sdl_close();
             break;
     }
 }
 
-static void gfx_sdl_handle_events(void) {
+static void gfx_sdl_handle_events() {
     SDL_Event event;
     SDL_PumpEvents();
     while (SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_FIRSTEVENT, SDL_CONTROLLERDEVICEADDED - 1) > 0) {
@@ -520,17 +574,16 @@ static void gfx_sdl_handle_events(void) {
     }
 }
 
-static bool gfx_sdl_start_frame(void) {
+static bool gfx_sdl_start_frame() {
     return true;
 }
 
 static uint64_t qpc_to_100ns(uint64_t qpc) {
     const uint64_t qpc_freq = SDL_GetPerformanceFrequency();
-    qpc *= 10000000;
-    return qpc / qpc_freq;
+    return qpc / qpc_freq * _100NANOSECONDS_IN_SECOND + qpc % qpc_freq * _100NANOSECONDS_IN_SECOND / qpc_freq;
 }
 
-static inline void sync_framerate_with_timer(void) {
+static inline void sync_framerate_with_timer() {
     uint64_t t;
     t = qpc_to_100ns(SDL_GetPerformanceCounter());
 
@@ -554,10 +607,11 @@ static inline void sync_framerate_with_timer(void) {
     }
 
 #ifdef _WIN32
-    do {
+    t = qpc_to_100ns(SDL_GetPerformanceCounter());
+    while (t < next) {
         YieldProcessor(); // TODO: Find a way for other compilers, OSes and architectures
         t = qpc_to_100ns(SDL_GetPerformanceCounter());
-    } while (t < next);
+    }
 #endif
     t = qpc_to_100ns(SDL_GetPerformanceCounter());
     if (left > 0 && t - next < 10000) {
@@ -569,15 +623,15 @@ static inline void sync_framerate_with_timer(void) {
     previous_time = t;
 }
 
-static void gfx_sdl_swap_buffers_begin(void) {
+static void gfx_sdl_swap_buffers_begin() {
     sync_framerate_with_timer();
     SDL_GL_SwapWindow(wnd);
 }
 
-static void gfx_sdl_swap_buffers_end(void) {
+static void gfx_sdl_swap_buffers_end() {
 }
 
-static double gfx_sdl_get_time(void) {
+static double gfx_sdl_get_time() {
     return 0.0;
 }
 
@@ -597,18 +651,18 @@ bool gfx_sdl_can_disable_vsync() {
     return false;
 }
 
-bool gfx_sdl_is_running(void) {
+bool gfx_sdl_is_running() {
     return is_running;
 }
 
-void gfx_sdl_destroy(void) {
+void gfx_sdl_destroy() {
     // TODO: destroy _any_ resources used by SDL
 
     SDL_DestroyRenderer(renderer);
     SDL_Quit();
 }
 
-bool gfx_sdl_is_fullscreen(void) {
+bool gfx_sdl_is_fullscreen() {
     return fullscreen_state;
 }
 
@@ -619,6 +673,13 @@ struct GfxWindowManagerAPI gfx_sdl = { gfx_sdl_init,
                                        gfx_sdl_set_fullscreen,
                                        gfx_sdl_get_active_window_refresh_rate,
                                        gfx_sdl_set_cursor_visibility,
+                                       gfx_sdl_set_mouse_pos,
+                                       gfx_sdl_get_mouse_pos,
+                                       gfx_sdl_get_mouse_delta,
+                                       gfx_sdl_get_mouse_wheel,
+                                       gfx_sdl_get_mouse_state,
+                                       gfx_sdl_set_mouse_capture,
+                                       gfx_sdl_is_mouse_captured,
                                        gfx_sdl_get_dimensions,
                                        gfx_sdl_handle_events,
                                        gfx_sdl_start_frame,

@@ -11,9 +11,30 @@ namespace Ship {
 int32_t ConsoleWindow::HelpCommand(std::shared_ptr<Console> console, const std::vector<std::string>& args,
                                    std::string* output) {
     if (output) {
-        *output += "Commands:\n";
+        *output += "Commands:";
         for (const auto& cmd : console->GetCommands()) {
-            *output += " - " + cmd.first + "\n";
+            *output += "\n - " + cmd.first + ": " + cmd.second.Description;
+
+            if (!cmd.second.Arguments.empty()) {
+                *output += "\n   - Arguments:";
+                for (size_t i = 0; i < cmd.second.Arguments.size(); i += 1) {
+                    const CommandArgument& argument = cmd.second.Arguments[i];
+
+                    *output += "\n     - Info=" + argument.Info;
+
+                    if (argument.Type == ArgumentType::NUMBER) {
+                        *output += " Type=Text";
+                    } else if (argument.Type == ArgumentType::TEXT) {
+                        *output += " Type=Number";
+                    } else {
+                        *output += " Type=Unknown";
+                    }
+
+                    if (argument.Optional) {
+                        *output += " [Optional]";
+                    }
+                }
+            }
         }
 
         return 0;
@@ -260,9 +281,6 @@ void ConsoleWindow::UpdateElement() {
 
 void ConsoleWindow::DrawElement() {
     bool inputFocus = false;
-
-    ImGui::SetNextWindowSize(ImVec2(520, 600), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Console", &mIsVisible, ImGuiWindowFlags_NoFocusOnAppearing);
     const ImVec2 pos = ImGui::GetWindowPos();
     const ImVec2 size = ImGui::GetWindowSize();
 
@@ -381,7 +399,7 @@ void ConsoleWindow::DrawElement() {
         }
 
         const std::vector<ConsoleLine> channel = mLog[mCurrentChannel];
-        for (size_t i = 0; i < static_cast<int32_t>(channel.size()); i++) {
+        for (size_t i = 0; i < channel.size(); i++) {
             ConsoleLine line = channel[i];
             if (!mFilter.empty() && line.Text.find(mFilter) == std::string::npos) {
                 continue;
@@ -392,8 +410,9 @@ void ConsoleWindow::DrawElement() {
             std::string id = line.Text + "##" + std::to_string(i);
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            const bool isSelected = (mSelectedId == i) || std::find(mSelectedEntries.begin(), mSelectedEntries.end(),
-                                                                    i) != mSelectedEntries.end();
+            const bool isSelected =
+                (mSelectedId == (int32_t)i) ||
+                std::find(mSelectedEntries.begin(), mSelectedEntries.end(), i) != mSelectedEntries.end();
             ImGui::PushStyleColor(ImGuiCol_Text, mPriorityColours[line.Priority]);
             if (ImGui::Selectable(id.c_str(), isSelected)) {
                 if (ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiKey_LeftCtrl)) && !isSelected) {
@@ -465,7 +484,6 @@ void ConsoleWindow::DrawElement() {
         }
         ImGui::PopItemWidth();
     }
-    ImGui::End();
 }
 
 void ConsoleWindow::Dispatch(const std::string& line) {
@@ -564,10 +582,23 @@ int ConsoleWindow::CallbackStub(ImGuiInputTextCallbackData* data) {
 
 void ConsoleWindow::Append(const std::string& channel, spdlog::level::level_enum priority, const char* fmt,
                            va_list args) {
-    char buf[2048];
-    vsnprintf(buf, IM_ARRAYSIZE(buf), fmt, args);
-    buf[IM_ARRAYSIZE(buf) - 1] = 0;
-    mLog[channel].push_back({ std::string(buf), priority });
+    // Determine the size of the formatted string
+    va_list argsCopy;
+    va_copy(argsCopy, args);
+    int size = vsnprintf(nullptr, 0, fmt, argsCopy);
+    va_end(argsCopy);
+
+    if (size < 0) {
+        SPDLOG_ERROR("Error during formatting.");
+        SendErrorMessage("There has been an error during formatting!");
+        return;
+    }
+
+    std::vector<char> buf(size + 1);
+    vsnprintf(buf.data(), buf.size(), fmt, args);
+
+    buf[buf.size() - 1] = 0;
+    mLog[channel].push_back({ std::string(buf.begin(), buf.end()), priority });
 }
 
 void ConsoleWindow::Append(const std::string& channel, spdlog::level::level_enum priority, const char* fmt, ...) {

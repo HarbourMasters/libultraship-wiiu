@@ -9,7 +9,7 @@ namespace Ship {
 class AxisDirectionMappingFactory {
   public:
     static std::shared_ptr<ControllerAxisDirectionMapping>
-    CreateAxisDirectionMappingFromConfig(uint8_t portIndex, Stick stick, std::string id);
+    CreateAxisDirectionMappingFromConfig(uint8_t portIndex, StickIndex stickIndex, std::string id);
 
 #ifdef __WIIU__
     static std::vector<std::shared_ptr<ControllerAxisDirectionMapping>>
@@ -19,13 +19,13 @@ class AxisDirectionMappingFactory {
     CreateAxisDirectionMappingFromWiiUInput(uint8_t portIndex, Stick stick, Direction direction);
 #else
     static std::vector<std::shared_ptr<ControllerAxisDirectionMapping>>
-    CreateDefaultKeyboardAxisDirectionMappings(uint8_t portIndex, Stick stick);
+    CreateDefaultKeyboardAxisDirectionMappings(uint8_t portIndex, StickIndex stickIndex);
 
     static std::vector<std::shared_ptr<ControllerAxisDirectionMapping>>
-    CreateDefaultSDLAxisDirectionMappings(ShipDeviceIndex shipDeviceIndex, uint8_t portIndex, Stick stick);
+    CreateDefaultSDLAxisDirectionMappings(ShipDeviceIndex shipDeviceIndex, uint8_t portIndex, StickIndex stickIndex);
 
     static std::shared_ptr<ControllerAxisDirectionMapping>
-    CreateAxisDirectionMappingFromSDLInput(uint8_t portIndex, Stick stick, Direction direction);
+    CreateAxisDirectionMappingFromSDLInput(uint8_t portIndex, StickIndex stickIndex, Direction direction);
 #endif
 };
 } // namespace Ship

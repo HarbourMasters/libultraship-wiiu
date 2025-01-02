@@ -19,11 +19,8 @@ class InputEditorWindow : public GuiWindow {
     using GuiWindow::GuiWindow;
     ~InputEditorWindow();
 
-    void DrawButton(const char* label, int32_t n64Btn, int32_t currentPort, int32_t* btnReading);
-
     void DrawInputChip(const char* buttonName, ImVec4 color);
     void DrawAnalogPreview(const char* label, ImVec2 stick, float deadzone = 0, bool gyro = false);
-    void DrawControllerSchema();
     bool TestingRumble();
 
   protected:
@@ -74,7 +71,7 @@ class InputEditorWindow : public GuiWindow {
     std::set<CONTROLLERBUTTONS_T> mButtonsBitmasks;
     std::set<CONTROLLERBUTTONS_T> mDpadBitmasks;
     void DrawButtonDeviceIcons(uint8_t portIndex, std::set<CONTROLLERBUTTONS_T> bitmasks);
-    void DrawAnalogStickDeviceIcons(uint8_t portIndex, Stick stick);
+    void DrawAnalogStickDeviceIcons(uint8_t portIndex, StickIndex stickIndex);
     void DrawRumbleDeviceIcons(uint8_t portIndex);
     void DrawGyroDeviceIcons(uint8_t portIndex);
     void DrawLEDDeviceIcons(uint8_t portIndex);

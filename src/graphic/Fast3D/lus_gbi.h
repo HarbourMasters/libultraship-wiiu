@@ -44,7 +44,7 @@ constexpr int8_t OTR_G_SETTIMG_OTR_FILEPATH = OPCODE(0x25);
 constexpr int8_t OTR_G_TRI1_OTR = OPCODE(0x26);
 constexpr int8_t OTR_G_DL_OTR_FILEPATH = OPCODE(0x27);
 constexpr int8_t OTR_G_PUSHCD = OPCODE(0x28);
-constexpr int8_t OTR_G_MTX_OTR2 = OPCODE(0x29);
+constexpr int8_t OTR_G_MTX_OTR_FILEPATH = OPCODE(0x29);
 constexpr int8_t OTR_G_DL_OTR_HASH = OPCODE(0x31);
 constexpr int8_t OTR_G_VTX_OTR_HASH = OPCODE(0x32);
 constexpr int8_t OTR_G_MARKER = OPCODE(0x33);
@@ -63,7 +63,9 @@ constexpr int8_t OTR_G_COPYFB = OPCODE(0x3b);
 constexpr int8_t OTR_G_IMAGERECT = OPCODE(0x3c);
 constexpr int8_t OTR_G_DL_INDEX = OPCODE(0x3d);
 constexpr int8_t OTR_G_READFB = OPCODE(0x3e);
+constexpr int8_t OTR_G_REGBLENDEDTEX = OPCODE(0x3f);
 constexpr int8_t OTR_G_SETINTENSITY = OPCODE(0x40);
+constexpr int8_t OTR_G_MOVEMEM_HASH = OPCODE(0x42);
 
 /*
  * The following commands are the "generated" RDP commands; the user
@@ -1110,16 +1112,34 @@ typedef union {
     long int force_structure_alignment[4];
 } F3DHilite;
 
+#ifdef USE_GBI_TRACE
+/*
+ * Trace structure
+ */
+typedef struct {
+    const char* file;
+    int idx;
+    bool valid;
+} F3DTrace;
+#endif
+
 /*
  * Generic Gfx Packet
  */
 typedef struct {
     uintptr_t w0;
     uintptr_t w1;
+#ifdef USE_GBI_TRACE
+    F3DTrace trace;
+#endif
 } F3DGwords;
 
 #ifdef __cplusplus
+#ifdef USE_GBI_TRACE
+static_assert(sizeof(F3DGwords) == 2 * sizeof(void*) + sizeof(F3DTrace), "Display list size is bad");
+#else
 static_assert(sizeof(F3DGwords) == 2 * sizeof(void*), "Display list size is bad");
+#endif
 #endif
 
 /*

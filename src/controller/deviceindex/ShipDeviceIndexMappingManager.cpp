@@ -607,6 +607,8 @@ void ShipDeviceIndexMappingManager::HandlePhysicalDeviceDisconnectSinglePlayer(i
 }
 
 void ShipDeviceIndexMappingManager::HandlePhysicalDeviceDisconnectMultiplayer(int32_t sdlJoystickInstanceId) {
+    auto portIndexOfPhysicalDeviceThatHasBeenDisconnected =
+        GetPortIndexOfDisconnectedPhysicalDevice(sdlJoystickInstanceId);
     auto lusIndexOfPhysicalDeviceThatHasBeenDisconnected =
         GetShipDeviceIndexOfDisconnectedPhysicalDevice(sdlJoystickInstanceId);
 
@@ -637,7 +639,7 @@ void ShipDeviceIndexMappingManager::HandlePhysicalDeviceDisconnectMultiplayer(in
                 Context::GetInstance()->GetWindow()->GetGui()->GetGuiWindow("Controller Disconnected"));
             if (controllerDisconnectedWindow != nullptr) {
                 controllerDisconnectedWindow->SetPortIndexOfDisconnectedController(
-                    GetPortIndexOfDisconnectedPhysicalDevice(sdlJoystickInstanceId));
+                    portIndexOfPhysicalDeviceThatHasBeenDisconnected);
                 controllerDisconnectedWindow->Show();
             }
             continue;

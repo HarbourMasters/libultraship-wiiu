@@ -87,6 +87,7 @@ static int8_t current_zmode_decal;
 static int8_t last_depth_test;
 static int8_t last_depth_mask;
 static int8_t last_zmode_decal;
+static bool srgb_mode = false;
 
 GLint max_msaa_level = 1;
 GLuint pixel_depth_rb, pixel_depth_fb;
@@ -102,7 +103,7 @@ static const char* gfx_opengl_get_name() {
     return "OpenGL";
 }
 
-static struct GfxClipParameters gfx_opengl_get_clip_parameters(void) {
+static struct GfxClipParameters gfx_opengl_get_clip_parameters() {
     return { false, framebuffers[current_framebuffer].invert_y };
 }
 
@@ -154,7 +155,7 @@ static void append_line(char* buf, size_t* len, const char* str) {
 #define RAND_NOISE "((random(vec3(floor(gl_FragCoord.xy * noise_scale), float(frame_count))) + 1.0) / 2.0)"
 
 static const char* shader_item_to_str(uint32_t item, bool with_alpha, bool only_alpha, bool inputs_have_alpha,
-                                      bool hint_single_element) {
+                                      bool first_cycle, bool hint_single_element) {
     if (!only_alpha) {
         switch (item) {
             case SHADER_0:
@@ -170,17 +171,27 @@ static const char* shader_item_to_str(uint32_t item, bool with_alpha, bool only_
             case SHADER_INPUT_4:
                 return with_alpha || !inputs_have_alpha ? "vInput4" : "vInput4.rgb";
             case SHADER_TEXEL0:
-                return with_alpha ? "texVal0" : "texVal0.rgb";
+                return first_cycle ? (with_alpha ? "texVal0" : "texVal0.rgb")
+                                   : (with_alpha ? "texVal1" : "texVal1.rgb");
             case SHADER_TEXEL0A:
-                return hint_single_element ? "texVal0.a"
-                                           : (with_alpha ? "vec4(texVal0.a, texVal0.a, texVal0.a, texVal0.a)"
-                                                         : "vec3(texVal0.a, texVal0.a, texVal0.a)");
+                return first_cycle
+                           ? (hint_single_element ? "texVal0.a"
+                                                  : (with_alpha ? "vec4(texVal0.a, texVal0.a, texVal0.a, texVal0.a)"
+                                                                : "vec3(texVal0.a, texVal0.a, texVal0.a)"))
+                           : (hint_single_element ? "texVal1.a"
+                                                  : (with_alpha ? "vec4(texVal1.a, texVal1.a, texVal1.a, texVal1.a)"
+                                                                : "vec3(texVal1.a, texVal1.a, texVal1.a)"));
             case SHADER_TEXEL1A:
-                return hint_single_element ? "texVal1.a"
-                                           : (with_alpha ? "vec4(texVal1.a, texVal1.a, texVal1.a, texVal1.a)"
-                                                         : "vec3(texVal1.a, texVal1.a, texVal1.a)");
+                return first_cycle
+                           ? (hint_single_element ? "texVal1.a"
+                                                  : (with_alpha ? "vec4(texVal1.a, texVal1.a, texVal1.a, texVal1.a)"
+                                                                : "vec3(texVal1.a, texVal1.a, texVal1.a)"))
+                           : (hint_single_element ? "texVal0.a"
+                                                  : (with_alpha ? "vec4(texVal0.a, texVal0.a, texVal0.a, texVal0.a)"
+                                                                : "vec3(texVal0.a, texVal0.a, texVal0.a)"));
             case SHADER_TEXEL1:
-                return with_alpha ? "texVal1" : "texVal1.rgb";
+                return first_cycle ? (with_alpha ? "texVal1" : "texVal1.rgb")
+                                   : (with_alpha ? "texVal0" : "texVal0.rgb");
             case SHADER_COMBINED:
                 return with_alpha ? "texel" : "texel.rgb";
             case SHADER_NOISE:
@@ -202,13 +213,13 @@ static const char* shader_item_to_str(uint32_t item, bool with_alpha, bool only_
             case SHADER_INPUT_4:
                 return "vInput4.a";
             case SHADER_TEXEL0:
-                return "texVal0.a";
+                return first_cycle ? "texVal0.a" : "texVal1.a";
             case SHADER_TEXEL0A:
-                return "texVal0.a";
+                return first_cycle ? "texVal0.a" : "texVal1.a";
             case SHADER_TEXEL1A:
-                return "texVal1.a";
+                return first_cycle ? "texVal1.a" : "texVal0.a";
             case SHADER_TEXEL1:
-                return "texVal1.a";
+                return first_cycle ? "texVal1.a" : "texVal0.a";
             case SHADER_COMBINED:
                 return "texel.a";
             case SHADER_NOISE:
@@ -221,30 +232,40 @@ static const char* shader_item_to_str(uint32_t item, bool with_alpha, bool only_
 #undef RAND_NOISE
 
 static void append_formula(char* buf, size_t* len, uint8_t c[2][4], bool do_single, bool do_multiply, bool do_mix,
-                           bool with_alpha, bool only_alpha, bool opt_alpha) {
+                           bool with_alpha, bool only_alpha, bool opt_alpha, bool first_cycle) {
     if (do_single) {
-        append_str(buf, len, shader_item_to_str(c[only_alpha][3], with_alpha, only_alpha, opt_alpha, false));
+        append_str(buf, len,
+                   shader_item_to_str(c[only_alpha][3], with_alpha, only_alpha, opt_alpha, first_cycle, false));
     } else if (do_multiply) {
-        append_str(buf, len, shader_item_to_str(c[only_alpha][0], with_alpha, only_alpha, opt_alpha, false));
+        append_str(buf, len,
+                   shader_item_to_str(c[only_alpha][0], with_alpha, only_alpha, opt_alpha, first_cycle, false));
         append_str(buf, len, " * ");
-        append_str(buf, len, shader_item_to_str(c[only_alpha][2], with_alpha, only_alpha, opt_alpha, true));
+        append_str(buf, len,
+                   shader_item_to_str(c[only_alpha][2], with_alpha, only_alpha, opt_alpha, first_cycle, true));
     } else if (do_mix) {
         append_str(buf, len, "mix(");
-        append_str(buf, len, shader_item_to_str(c[only_alpha][1], with_alpha, only_alpha, opt_alpha, false));
+        append_str(buf, len,
+                   shader_item_to_str(c[only_alpha][1], with_alpha, only_alpha, opt_alpha, first_cycle, false));
         append_str(buf, len, ", ");
-        append_str(buf, len, shader_item_to_str(c[only_alpha][0], with_alpha, only_alpha, opt_alpha, false));
+        append_str(buf, len,
+                   shader_item_to_str(c[only_alpha][0], with_alpha, only_alpha, opt_alpha, first_cycle, false));
         append_str(buf, len, ", ");
-        append_str(buf, len, shader_item_to_str(c[only_alpha][2], with_alpha, only_alpha, opt_alpha, true));
+        append_str(buf, len,
+                   shader_item_to_str(c[only_alpha][2], with_alpha, only_alpha, opt_alpha, first_cycle, true));
         append_str(buf, len, ")");
     } else {
         append_str(buf, len, "(");
-        append_str(buf, len, shader_item_to_str(c[only_alpha][0], with_alpha, only_alpha, opt_alpha, false));
+        append_str(buf, len,
+                   shader_item_to_str(c[only_alpha][0], with_alpha, only_alpha, opt_alpha, first_cycle, false));
         append_str(buf, len, " - ");
-        append_str(buf, len, shader_item_to_str(c[only_alpha][1], with_alpha, only_alpha, opt_alpha, false));
+        append_str(buf, len,
+                   shader_item_to_str(c[only_alpha][1], with_alpha, only_alpha, opt_alpha, first_cycle, false));
         append_str(buf, len, ") * ");
-        append_str(buf, len, shader_item_to_str(c[only_alpha][2], with_alpha, only_alpha, opt_alpha, true));
+        append_str(buf, len,
+                   shader_item_to_str(c[only_alpha][2], with_alpha, only_alpha, opt_alpha, first_cycle, true));
         append_str(buf, len, " + ");
-        append_str(buf, len, shader_item_to_str(c[only_alpha][3], with_alpha, only_alpha, opt_alpha, false));
+        append_str(buf, len,
+                   shader_item_to_str(c[only_alpha][3], with_alpha, only_alpha, opt_alpha, first_cycle, false));
     }
 }
 
@@ -458,6 +479,14 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
     append_line(fs_buf, &fs_len, "out vec4 outColor;");
 #endif
 
+    if (srgb_mode) {
+        append_line(fs_buf, &fs_len, "vec4 fromLinear(vec4 linearRGB){");
+        append_line(fs_buf, &fs_len, "    bvec3 cutoff = lessThan(linearRGB.rgb, vec3(0.0031308));");
+        append_line(fs_buf, &fs_len, "    vec3 higher = vec3(1.055)*pow(linearRGB.rgb, vec3(1.0/2.4)) - vec3(0.055);");
+        append_line(fs_buf, &fs_len, "    vec3 lower = linearRGB.rgb * vec3(12.92);");
+        append_line(fs_buf, &fs_len, "return vec4(mix(higher, lower, cutoff), linearRGB.a);}");
+    }
+
     append_line(fs_buf, &fs_len, "void main() {");
 
     // Reference approach to color wrapping as per GLideN64
@@ -541,15 +570,15 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
         if (!cc_features.color_alpha_same[c] && cc_features.opt_alpha) {
             append_str(fs_buf, &fs_len, "vec4(");
             append_formula(fs_buf, &fs_len, cc_features.c[c], cc_features.do_single[c][0],
-                           cc_features.do_multiply[c][0], cc_features.do_mix[c][0], false, false, true);
+                           cc_features.do_multiply[c][0], cc_features.do_mix[c][0], false, false, true, c == 0);
             append_str(fs_buf, &fs_len, ", ");
             append_formula(fs_buf, &fs_len, cc_features.c[c], cc_features.do_single[c][1],
-                           cc_features.do_multiply[c][1], cc_features.do_mix[c][1], true, true, true);
+                           cc_features.do_multiply[c][1], cc_features.do_mix[c][1], true, true, true, c == 0);
             append_str(fs_buf, &fs_len, ")");
         } else {
             append_formula(fs_buf, &fs_len, cc_features.c[c], cc_features.do_single[c][0],
                            cc_features.do_multiply[c][0], cc_features.do_mix[c][0], cc_features.opt_alpha, false,
-                           cc_features.opt_alpha);
+                           cc_features.opt_alpha, c == 0);
         }
         append_line(fs_buf, &fs_len, ";");
     }
@@ -600,6 +629,15 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
         append_line(fs_buf, &fs_len, "gl_FragColor = vec4(texel, 1.0);");
 #endif
     }
+
+    if (srgb_mode) {
+#if defined(__APPLE__) || defined(USE_OPENGLES)
+        append_line(fs_buf, &fs_len, "outColor = fromLinear(outColor);");
+#else
+        append_line(fs_buf, &fs_len, "gl_FragColor = fromLinear(gl_FragColor);");
+#endif
+    }
+
     append_line(fs_buf, &fs_len, "}");
 
     vs_buf[vs_len] = '\0';
@@ -749,7 +787,7 @@ static void gfx_opengl_shader_get_info(struct ShaderProgram* prg, uint8_t* num_i
     used_textures[1] = prg->used_textures[1];
 }
 
-static GLuint gfx_opengl_new_texture(void) {
+static GLuint gfx_opengl_new_texture() {
     GLuint ret;
     glGenTextures(1, &ret);
     return ret;
@@ -875,7 +913,7 @@ static void gfx_opengl_draw_triangles(float buf_vbo[], size_t buf_vbo_len, size_
     glDrawArrays(GL_TRIANGLES, 0, 3 * buf_vbo_num_tris);
 }
 
-static void gfx_opengl_init(void) {
+static void gfx_opengl_init() {
 #ifndef __linux__
     glewInit();
 #endif
@@ -911,18 +949,18 @@ static void gfx_opengl_init(void) {
     glGetIntegerv(GL_MAX_SAMPLES, &max_msaa_level);
 }
 
-static void gfx_opengl_on_resize(void) {
+static void gfx_opengl_on_resize() {
 }
 
-static void gfx_opengl_start_frame(void) {
+static void gfx_opengl_start_frame() {
     frame_count++;
 }
 
-static void gfx_opengl_end_frame(void) {
+static void gfx_opengl_end_frame() {
     glFlush();
 }
 
-static void gfx_opengl_finish_render(void) {
+static void gfx_opengl_finish_render() {
 }
 
 static int gfx_opengl_create_framebuffer() {
@@ -1018,10 +1056,11 @@ void gfx_opengl_start_draw_to_framebuffer(int fb_id, float noise_scale) {
     current_framebuffer = fb_id;
 }
 
-void gfx_opengl_clear_framebuffer() {
+void gfx_opengl_clear_framebuffer(bool color, bool depth) {
     glDisable(GL_SCISSOR_TEST);
     glDepthMask(GL_TRUE);
-    glClear(GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear((color ? GL_COLOR_BUFFER_BIT : 0) | (depth ? GL_DEPTH_BUFFER_BIT : 0));
     glDepthMask(current_depth_mask ? GL_TRUE : GL_FALSE);
     glEnable(GL_SCISSOR_TEST);
 }
@@ -1202,8 +1241,12 @@ void gfx_opengl_set_texture_filter(FilteringMode mode) {
     gfx_texture_cache_clear();
 }
 
-FilteringMode gfx_opengl_get_texture_filter(void) {
+FilteringMode gfx_opengl_get_texture_filter() {
     return current_filter_mode;
+}
+
+void gfx_opengl_enable_srgb_mode() {
+    srgb_mode = true;
 }
 
 struct GfxRenderingAPI gfx_opengl_api = { gfx_opengl_get_name,
@@ -1241,6 +1284,7 @@ struct GfxRenderingAPI gfx_opengl_api = { gfx_opengl_get_name,
                                           gfx_opengl_select_texture_fb,
                                           gfx_opengl_delete_texture,
                                           gfx_opengl_set_texture_filter,
-                                          gfx_opengl_get_texture_filter };
+                                          gfx_opengl_get_texture_filter,
+                                          gfx_opengl_enable_srgb_mode };
 
 #endif

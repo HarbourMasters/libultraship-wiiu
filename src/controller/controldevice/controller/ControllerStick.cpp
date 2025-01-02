@@ -21,8 +21,8 @@
 #define MINIMUM_RADIUS_TO_MAP_NOTCH 0.9
 
 namespace Ship {
-ControllerStick::ControllerStick(uint8_t portIndex, Stick stick)
-    : mPortIndex(portIndex), mStick(stick), mUseKeydownEventToCreateNewMapping(false),
+ControllerStick::ControllerStick(uint8_t portIndex, StickIndex stickIndex)
+    : mPortIndex(portIndex), mStickIndex(stickIndex), mUseKeydownEventToCreateNewMapping(false),
       mKeyboardScancodeForNewMapping(KbScancode::LUS_KB_UNKNOWN) {
     mSensitivityPercentage = DEFAULT_STICK_SENSITIVITY_PERCENTAGE;
     mSensitivity = 1.0f;
@@ -69,8 +69,8 @@ void ControllerStick::ClearAllMappingsForDevice(ShipDeviceIndex lusIndex) {
 }
 
 // todo: where should this live?
-std::unordered_map<Stick, std::string> stickToConfigStickName = { { LEFT_STICK, "LeftStick" },
-                                                                  { RIGHT_STICK, "RightStick" } };
+std::unordered_map<StickIndex, std::string> stickIndexToConfigStickIndexName = { { LEFT_STICK, "LeftStick" },
+                                                                                 { RIGHT_STICK, "RightStick" } };
 
 // todo: where should this live?
 std::unordered_map<Direction, std::string> directionToConfigDirectionName = {
@@ -89,7 +89,7 @@ void ControllerStick::SaveAxisDirectionMappingIdsToConfig() {
 
         const std::string axisDirectionMappingIdsCvarKey = StringHelper::Sprintf(
             CVAR_PREFIX_CONTROLLERS ".Port%d.%s.%sAxisDirectionMappingIds", mPortIndex + 1,
-            stickToConfigStickName[mStick].c_str(), directionToConfigDirectionName[direction].c_str());
+            stickIndexToConfigStickIndexName[mStickIndex].c_str(), directionToConfigDirectionName[direction].c_str());
         if (axisDirectionMappingIdListString == "") {
             CVarClear(axisDirectionMappingIdsCvarKey.c_str());
         } else {
@@ -137,13 +137,13 @@ void ControllerStick::AddDefaultMappings(ShipDeviceIndex lusIndex) {
 #else
 void ControllerStick::AddDefaultMappings(ShipDeviceIndex lusIndex) {
     for (auto mapping :
-         AxisDirectionMappingFactory::CreateDefaultSDLAxisDirectionMappings(lusIndex, mPortIndex, mStick)) {
+         AxisDirectionMappingFactory::CreateDefaultSDLAxisDirectionMappings(lusIndex, mPortIndex, mStickIndex)) {
         AddAxisDirectionMapping(mapping->GetDirection(), mapping);
     }
 
     if (lusIndex == ShipDeviceIndex::Keyboard) {
         for (auto mapping :
-             AxisDirectionMappingFactory::CreateDefaultKeyboardAxisDirectionMappings(mPortIndex, mStick)) {
+             AxisDirectionMappingFactory::CreateDefaultKeyboardAxisDirectionMappings(mPortIndex, mStickIndex)) {
             AddAxisDirectionMapping(mapping->GetDirection(), mapping);
         }
     }
@@ -158,7 +158,7 @@ void ControllerStick::AddDefaultMappings(ShipDeviceIndex lusIndex) {
 #endif
 
 void ControllerStick::LoadAxisDirectionMappingFromConfig(std::string id) {
-    auto mapping = AxisDirectionMappingFactory::CreateAxisDirectionMappingFromConfig(mPortIndex, mStick, id);
+    auto mapping = AxisDirectionMappingFactory::CreateAxisDirectionMappingFromConfig(mPortIndex, mStickIndex, id);
 
     if (mapping == nullptr) {
         return;
@@ -178,7 +178,7 @@ void ControllerStick::ReloadAllMappingsFromConfig() {
     for (auto direction : { LEFT, RIGHT, UP, DOWN }) {
         const std::string axisDirectionMappingIdsCvarKey = StringHelper::Sprintf(
             CVAR_PREFIX_CONTROLLERS ".Port%d.%s.%sAxisDirectionMappingIds", mPortIndex + 1,
-            stickToConfigStickName[mStick].c_str(), directionToConfigDirectionName[direction].c_str());
+            stickIndexToConfigStickIndexName[mStickIndex].c_str(), directionToConfigDirectionName[direction].c_str());
 
         std::stringstream axisDirectionMappingIdsStringStream(
             CVarGetString(axisDirectionMappingIdsCvarKey.c_str(), ""));
@@ -188,20 +188,23 @@ void ControllerStick::ReloadAllMappingsFromConfig() {
         }
     }
 
-    SetSensitivity(CVarGetInteger(StringHelper::Sprintf(CVAR_PREFIX_CONTROLLERS ".Port%d.%s.SensitivityPercentage",
-                                                        mPortIndex + 1, stickToConfigStickName[mStick].c_str())
-                                      .c_str(),
-                                  DEFAULT_STICK_SENSITIVITY_PERCENTAGE));
+    SetSensitivity(
+        CVarGetInteger(StringHelper::Sprintf(CVAR_PREFIX_CONTROLLERS ".Port%d.%s.SensitivityPercentage", mPortIndex + 1,
+                                             stickIndexToConfigStickIndexName[mStickIndex].c_str())
+                           .c_str(),
+                       DEFAULT_STICK_SENSITIVITY_PERCENTAGE));
 
-    SetDeadzone(CVarGetInteger(StringHelper::Sprintf(CVAR_PREFIX_CONTROLLERS ".Port%d.%s.DeadzonePercentage",
-                                                     mPortIndex + 1, stickToConfigStickName[mStick].c_str())
-                                   .c_str(),
-                               DEFAULT_STICK_DEADZONE_PERCENTAGE));
+    SetDeadzone(
+        CVarGetInteger(StringHelper::Sprintf(CVAR_PREFIX_CONTROLLERS ".Port%d.%s.DeadzonePercentage", mPortIndex + 1,
+                                             stickIndexToConfigStickIndexName[mStickIndex].c_str())
+                           .c_str(),
+                       DEFAULT_STICK_DEADZONE_PERCENTAGE));
 
-    SetNotchSnapAngle(CVarGetInteger(StringHelper::Sprintf(CVAR_PREFIX_CONTROLLERS ".Port%d.%s.NotchSnapAngle",
-                                                           mPortIndex + 1, stickToConfigStickName[mStick].c_str())
-                                         .c_str(),
-                                     0));
+    SetNotchSnapAngle(
+        CVarGetInteger(StringHelper::Sprintf(CVAR_PREFIX_CONTROLLERS ".Port%d.%s.NotchSnapAngle", mPortIndex + 1,
+                                             stickIndexToConfigStickIndexName[mStickIndex].c_str())
+                           .c_str(),
+                       0));
 }
 
 double ControllerStick::GetClosestNotch(double angle, double approximationThreshold) {
@@ -304,12 +307,13 @@ bool ControllerStick::AddOrEditAxisDirectionMappingFromRawPress(Direction direct
 
     mUseKeydownEventToCreateNewMapping = true;
     if (mKeyboardScancodeForNewMapping != LUS_KB_UNKNOWN) {
-        mapping = std::make_shared<KeyboardKeyToAxisDirectionMapping>(mPortIndex, mStick, direction,
+        mapping = std::make_shared<KeyboardKeyToAxisDirectionMapping>(mPortIndex, mStickIndex, direction,
                                                                       mKeyboardScancodeForNewMapping);
     }
 
     if (mapping == nullptr) {
-        mapping = AxisDirectionMappingFactory::CreateAxisDirectionMappingFromSDLInput(mPortIndex, mStick, direction);
+        mapping =
+            AxisDirectionMappingFactory::CreateAxisDirectionMappingFromSDLInput(mPortIndex, mStickIndex, direction);
     }
 
     if (mapping == nullptr) {
@@ -354,9 +358,13 @@ void ControllerStick::UpdatePad(int8_t& x, int8_t& y) {
 
 #ifndef __WIIU__
 bool ControllerStick::ProcessKeyboardEvent(KbEventType eventType, KbScancode scancode) {
-    if (mUseKeydownEventToCreateNewMapping && eventType == LUS_KB_EVENT_KEY_DOWN) {
-        mKeyboardScancodeForNewMapping = scancode;
-        return true;
+    if (mUseKeydownEventToCreateNewMapping) {
+        if (eventType == LUS_KB_EVENT_KEY_DOWN) {
+            mKeyboardScancodeForNewMapping = scancode;
+            return true;
+        } else {
+            mKeyboardScancodeForNewMapping = LUS_KB_UNKNOWN;
+        }
     }
 
     bool result = false;
@@ -379,7 +387,7 @@ void ControllerStick::SetSensitivity(uint8_t sensitivityPercentage) {
     mSensitivityPercentage = sensitivityPercentage;
     mSensitivity = sensitivityPercentage / 100.0f;
     CVarSetInteger(StringHelper::Sprintf(CVAR_PREFIX_CONTROLLERS ".Port%d.%s.SensitivityPercentage", mPortIndex + 1,
-                                         stickToConfigStickName[mStick].c_str())
+                                         stickIndexToConfigStickIndexName[mStickIndex].c_str())
                        .c_str(),
                    mSensitivityPercentage);
     CVarSave();
@@ -401,7 +409,7 @@ void ControllerStick::SetDeadzone(uint8_t deadzonePercentage) {
     mDeadzonePercentage = deadzonePercentage;
     mDeadzone = MAX_AXIS_RANGE * (deadzonePercentage / 100.0f);
     CVarSetInteger(StringHelper::Sprintf(CVAR_PREFIX_CONTROLLERS ".Port%d.%s.DeadzonePercentage", mPortIndex + 1,
-                                         stickToConfigStickName[mStick].c_str())
+                                         stickIndexToConfigStickIndexName[mStickIndex].c_str())
                        .c_str(),
                    mDeadzonePercentage);
     CVarSave();
@@ -422,7 +430,7 @@ bool ControllerStick::DeadzoneIsDefault() {
 void ControllerStick::SetNotchSnapAngle(uint8_t notchSnapAngle) {
     mNotchSnapAngle = notchSnapAngle;
     CVarSetInteger(StringHelper::Sprintf(CVAR_PREFIX_CONTROLLERS ".Port%d.%s.NotchSnapAngle", mPortIndex + 1,
-                                         stickToConfigStickName[mStick].c_str())
+                                         stickIndexToConfigStickIndexName[mStickIndex].c_str())
                        .c_str(),
                    mNotchSnapAngle);
     CVarSave();
@@ -455,7 +463,7 @@ ControllerStick::GetAllAxisDirectionMappings() {
     return mAxisDirectionMappings;
 }
 
-Stick ControllerStick::LeftOrRightStick() {
-    return mStick;
+StickIndex ControllerStick::GetStickIndex() {
+    return mStickIndex;
 }
 } // namespace Ship

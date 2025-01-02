@@ -1,14 +1,14 @@
 #include "gfxdebuggerbridge.h"
 #include "Context.h"
-#include "debug/GfxDebugger.h"
+#include "graphic/Fast3D/debug/GfxDebugger.h"
 
-void GfxDebuggerRequestDebugging(void) {
+void GfxDebuggerRequestDebugging() {
     Ship::Context::GetInstance()->GetGfxDebugger()->RequestDebugging();
 }
-bool GfxDebuggerIsDebugging(void) {
+bool GfxDebuggerIsDebugging() {
     return Ship::Context::GetInstance()->GetGfxDebugger()->IsDebugging();
 }
-bool GfxDebuggerIsDebuggingRequested(void) {
+bool GfxDebuggerIsDebuggingRequested() {
     return Ship::Context::GetInstance()->GetGfxDebugger()->IsDebuggingRequested();
 }
 void GfxDebuggerDebugDisplayList(void* cmds) {

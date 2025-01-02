@@ -20,7 +20,9 @@ ImTextureID gfx_metal_get_texture_by_id(int id);
 bool Metal_IsSupported();
 
 bool Metal_Init(SDL_Renderer* renderer);
+void Metal_SetupFrame(SDL_Renderer* renderer);
 void Metal_NewFrame(SDL_Renderer* renderer);
+void Metal_SetupFloatingFrame();
 void Metal_RenderDrawData(ImDrawData* draw_data);
 
 #endif
